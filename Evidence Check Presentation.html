@@ -1,0 +1,396 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Evidence Check - Presentation</title>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet" />
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { font-family: 'Inter', system-ui, sans-serif; background: #F8FAFC; color: #0F172A; }
+  .slide { display: none; min-height: 100vh; padding: 44px 72px 96px; flex-direction: column; gap: 22px; }
+  .slide.active { display: flex; }
+  .kicker { font-size: 14px; font-weight: 700; letter-spacing: .08em; text-transform: uppercase; color: #2563EB; }
+  .kicker.backup { color: #64748B; }
+  h1 { font-size: 38px; line-height: 1.15; font-weight: 800; max-width: 1120px; }
+  .sub { font-size: 20px; color: #475569; max-width: 1000px; line-height: 1.5; }
+  .grid { display: grid; gap: 20px; }
+  .g2 { grid-template-columns: 1fr 1fr; }
+  .g3 { grid-template-columns: repeat(3, 1fr); }
+  .g4 { grid-template-columns: repeat(4, 1fr); }
+  .card { background: #fff; border: 1px solid #E2E8F0; border-radius: 14px; padding: 22px; }
+  .card h3 { font-size: 18px; margin-bottom: 8px; }
+  .card p, .card li { font-size: 17px; line-height: 1.5; color: #334155; }
+  .card ul { padding-left: 20px; display: grid; gap: 6px; }
+  .big { font-size: 46px; font-weight: 800; line-height: 1.1; }
+  .label { font-size: 14px; font-weight: 600; color: #64748B; }
+  .pill { display: inline-block; font-size: 14px; font-weight: 600; padding: 4px 12px; border-radius: 999px; }
+  .p-green { background: #DCFCE7; color: #15803D; }
+  .p-amber { background: #FEF3C7; color: #B45309; }
+  .p-blue { background: #DBEAFE; color: #1D4ED8; }
+  .p-grey { background: #F1F5F9; color: #475569; }
+  .hl { border: 2px solid #2563EB; background: #EFF6FF; }
+  .def { font-size: 26px; line-height: 1.4; font-weight: 600; color: #1E293B; max-width: 1100px; }
+  .num { font-size: 30px; font-weight: 800; color: #2563EB; }
+  .foot { position: absolute; left: 72px; bottom: 64px; font-size: 13px; color: #94A3B8; }
+  .row { display: flex; gap: 14px; align-items: stretch; }
+  .arrow { align-self: center; font-size: 26px; color: #94A3B8; }
+  .step { flex: 1; text-align: center; }
+  .step b { display: block; font-size: 17px; margin-bottom: 4px; }
+  .step span { font-size: 15px; color: #475569; line-height: 1.4; }
+  .opt { border: 2px solid #E2E8F0; border-radius: 12px; padding: 14px 16px; background: #fff; display: flex; gap: 12px; align-items: flex-start; }
+  .opt.sel { border-color: #2563EB; background: #EFF6FF; }
+  .radio { width: 16px; height: 16px; border: 2px solid #94A3B8; border-radius: 50%; margin-top: 5px; flex: none; }
+  .opt.sel .radio { border-color: #2563EB; background: radial-gradient(#2563EB 45%, transparent 50%); }
+  .opt .t { font-size: 17px; font-weight: 600; }
+  .opt .v { font-size: 28px; font-weight: 800; }
+  .opt .i { font-size: 15px; color: #475569; }
+  .chain { display: grid; gap: 10px; }
+  .chain div { display: flex; gap: 12px; font-size: 16px; line-height: 1.45; color: #1E293B; align-items: baseline; }
+  .chain code { font-size: 13px; color: #94A3B8; flex: none; }
+  .actor { font-size: 12px; font-weight: 700; padding: 2px 8px; border-radius: 999px; flex: none; }
+  .a-sys { background: #F1F5F9; color: #334155; }
+  .a-rou { background: #E0E7FF; color: #3730A3; }
+  .a-res { background: #FEF3C7; color: #92400E; }
+  .a-you { background: #DBEAFE; color: #1E40AF; }
+  table { width: 100%; border-collapse: collapse; font-size: 16px; }
+  th, td { text-align: left; padding: 9px 10px; border-bottom: 1px solid #E2E8F0; vertical-align: top; }
+  th { color: #64748B; font-weight: 600; font-size: 14px; }
+  .notes { display: none; position: fixed; left: 0; right: 0; bottom: 0; background: #0F172A; color: #E2E8F0; padding: 14px 72px 64px; font-size: 16px; line-height: 1.5; z-index: 5; }
+  body.show-notes .slide.active .notes { display: block; }
+  .nav { position: fixed; bottom: 14px; left: 0; right: 0; display: flex; justify-content: center; align-items: center; gap: 16px; z-index: 10; }
+  .nav button { border: 1px solid #CBD5E1; background: #fff; border-radius: 8px; padding: 8px 16px; font-size: 15px; cursor: pointer; }
+  .nav button:hover { background: #F1F5F9; }
+  #count { font-size: 14px; color: #64748B; min-width: 64px; text-align: center; }
+  .hint { font-size: 13px; color: #94A3B8; }
+  @media (max-width: 900px) { .slide { padding: 28px 24px 96px; } .g2, .g3, .g4 { grid-template-columns: 1fr; } .row { flex-direction: column; } .arrow { transform: rotate(90deg); } h1 { font-size: 28px; } .def { font-size: 21px; } .foot { left: 24px; } }
+  @media print { body { background: #fff; } .slide { display: flex !important; page-break-after: always; min-height: 100vh; } .nav, .notes { display: none !important; } }
+</style>
+</head>
+<body>
+
+<!-- 1. Title -->
+<section class="slide active">
+  <div class="kicker">Product concept · Investment AI</div>
+  <h1 style="font-size:52px">Evidence Check: prove every number in an investment decision</h1>
+  <p class="sub">A capability of the Financial Data Intelligence Platform, built into (In)Alpha and Credit Companion.</p>
+  <aside class="notes">Open with the promise: every number in a committee memo can be traced, explained and challenged. Then go straight to the problem.</aside>
+</section>
+
+<!-- 2. Problem -->
+<section class="slide">
+  <div class="kicker">The problem</div>
+  <h1>The numbers in a memo disagree, and nobody can see why one was chosen</h1>
+  <p class="sub">Project Falcon, a $485.0M loan to a private borrower. The covenant limit is 3.50x leverage, tested on the loan agreement's own definition of EBITDA.</p>
+  <div class="grid g3">
+    <div class="card"><div class="label">Management (lender presentation)</div><div class="big">$155.0M</div><p>Leverage 3.02x</p></div>
+    <div class="card hl"><div class="label">Loan agreement definition</div><div class="big">$150.5M</div><p>Leverage 3.11x · headroom 0.39x</p></div>
+    <div class="card"><div class="label">Audited accounts basis</div><div class="big">$142.0M</div><p>Leverage 3.30x</p></div>
+  </div>
+  <p class="sub">Analysts reconcile these by hand. The committee cannot see why one was chosen, or challenge it.</p>
+  <div class="foot">Illustrative demo data</div>
+  <aside class="notes">Same company, three EBITDAs, each defensible. The covenant is tested on the contract definition, so the choice moves headroom between 0.20x and 0.48x.</aside>
+</section>
+
+<!-- 3. Insight -->
+<section class="slide">
+  <div class="kicker">The insight</div>
+  <h1>Nobody is wrong: the figures answer different questions</h1>
+  <div class="grid g2">
+    <div class="card">
+      <h3>The gap is explainable</h3>
+      <ul>
+        <li><b>$142.0M</b> audited operating EBITDA</li>
+        <li><b>+ $8.5M</b> share-based pay, allowed by the loan agreement: <b>$150.5M</b></li>
+        <li><b>+ $4.5M</b> lease adjustment, not allowed: management's <b>$155.0M</b></li>
+      </ul>
+    </div>
+    <div class="card">
+      <h3>Where to look is a question of value</h3>
+      <ul>
+        <li>A private borrower has no vendor data, so asking vendors wastes time and money</li>
+        <li>A listed target needs one live lookup, not five</li>
+      </ul>
+    </div>
+  </div>
+  <p class="sub">So the product does two jobs: decide <b>where to look</b>, and decide <b>which figure to use, and why</b>.</p>
+  <div class="foot">Illustrative demo data</div>
+  <aside class="notes">Two ideas. One: resolve to the definition that applies, then pick the source. Two: do not call every source for every figure.</aside>
+</section>
+
+<!-- 4. What it is -->
+<section class="slide">
+  <div class="kicker">What it is</div>
+  <h1>One action in, a decision with its proof out</h1>
+  <div class="row">
+    <div class="card step hl"><b>You: one action</b><span>Prepare memo, or Generate IC memo</span></div><div class="arrow">→</div>
+    <div class="card step"><b>The system</b><span>Looks in the right places, resolves the disagreement, decides and explains why</span></div><div class="arrow">→</div>
+    <div class="card step hl"><b>You: review</b><span>See the evidence, accept the decision or change it</span></div>
+  </div>
+  <p class="sub">Every step is recorded in an audit trail you can replay.</p>
+  <p class="sub" style="font-size:16px">Built as the Evidence Layer of the platform (a source router, a resolver and an audit trail), and shown to users as Evidence Check inside (In)Alpha and Credit Companion.</p>
+  <aside class="notes">Keep it to the three beats. Mention the Evidence Layer name once, here, and use Evidence Check for the rest of the talk.</aside>
+</section>
+
+<!-- 5. Who it helps and value -->
+<section class="slide">
+  <div class="kicker">Who it helps</div>
+  <h1>Faster, defensible decisions, at lower data cost</h1>
+  <div class="grid g4">
+    <div class="card"><h3>Committee members</h3><p>Trace a figure to its source in two clicks, or challenge it.</p></div>
+    <div class="card"><h3>Analysts and underwriters</h3><p>Stop reconciling by hand. Review the decision, change it only if you disagree.</p></div>
+    <div class="card"><h3>Compliance and audit</h3><p>Replay any figure from request to decision.</p></div>
+    <div class="card"><h3>G42 and the platform</h3><p>Pay only for lookups that help. One engine for every product.</p></div>
+  </div>
+  <p class="sub">We will measure it, not assume it: baselines in the first 30 days, then targets.</p>
+  <aside class="notes">Value by audience. Avoid quoting numbers you cannot defend: say you will baseline in the first 30 days.</aside>
+</section>
+
+<!-- 6. Live demo -->
+<section class="slide">
+  <div class="kicker">Live demo</div>
+  <h1>See it work, in two products</h1>
+  <div class="grid g3">
+    <div class="card hl"><div class="num">1</div><h3>Credit Companion</h3><p>Project Falcon. The system picks one figure: the loan agreement's definition.</p></div>
+    <div class="card hl"><div class="num">2</div><h3>(In)Alpha</h3><p>Project Atlas. The system shows both bases: 12.4x LTM and 12.8x NTM.</p></div>
+    <div class="card hl"><div class="num">3</div><h3>Platform team view</h3><p>What the product team learns across many memos.</p></div>
+  </div>
+  <aside class="notes">Switch to the prototype. Start screen, Prepare memo, click the blue figure, show the reason and the evidence, use Change decision to show that a reason is required, accept again and tick Remember. Then switch to the Investment case. Then open Where we looked, the Audit trail, and the Platform team view. Return to slide 7 afterwards.</aside>
+</section>
+
+<!-- 7. Learning loop -->
+<section class="slide">
+  <div class="kicker">The learning loop</div>
+  <h1>The product team sees what the client does not, and uses it to improve</h1>
+  <div class="grid g2">
+    <div class="card"><h3>The client sees</h3><ul><li>The decision, the reason and the evidence</li><li>Which sources were used or skipped</li><li>The audit trail of every step</li></ul><p style="margin-top:10px">No vendor costs, no response times.</p></div>
+    <div class="card hl"><h3>The product team sees, across many memos</h3><ul><li>Which sources change the answer, at what cost and speed</li><li>How often users accept or override a decision, and why</li><li>Ratings and reported problems</li><li>A backlog of improvements to the router and the resolver</li></ul></div>
+  </div>
+  <div class="card">
+    <h3>Examples (illustrative)</h3>
+    <table>
+      <tr><th>What the data shows</th><th>Proposed change</th></tr>
+      <tr><td>Bloomberg live was called in every memo but changed the answer in 3 of 52</td><td>Router: call it only when a live price or forward view is needed</td></tr>
+      <tr><td>3 of 5 overrides asked for the LTM headline with NTM in brackets</td><td>Resolver: add that presentation option</td></tr>
+    </table>
+  </div>
+  <div class="foot">Illustrative demo data</div>
+  <aside class="notes">This is the learning loop the role is about: an engine that learns which sources earn their cost. In this first version quality is judged from client feedback only; precision and accuracy against ground truth come next.</aside>
+</section>
+
+<!-- 8. Why G42 + success -->
+<section class="slide">
+  <div class="kicker">Why G42, and what success looks like</div>
+  <h1>What is commodity, what is G42's, and how we will know it works</h1>
+  <div class="grid g2">
+    <div class="card"><h3>Commodity: reuse</h3><ul><li>Citations and document chat</li><li>Semantic search</li><li>Basic extraction from filings</li></ul></div>
+    <div class="card hl"><h3>G42's own: build</h3><ul><li>A router that explains what it skipped and why</li><li>Two kinds of decision: pick one, label both</li><li>Client rules learned from committee decisions</li><li>Sovereign and Arabic-native workflows</li></ul></div>
+  </div>
+  <div class="card">
+    <h3>Success looks like</h3>
+    <ul><li>Any figure traceable to its source page in two clicks</li><li>No memo reaches committee with a figure nobody has reviewed</li><li>Every decision can be replayed</li><li>We know which sources are worth paying for</li></ul>
+    <p style="margin-top:10px">Baselines in the first 30 days, then targets.</p>
+  </div>
+  <aside class="notes">Be explicit about what you would not build. Citations are table stakes. The differentiation is the router that explains itself, two kinds of decision, client rule memory and source-value measurement, on a sovereign and Arabic-native stack.</aside>
+</section>
+
+<!-- 9. Next -->
+<section class="slide">
+  <div class="kicker">Next</div>
+  <h1>Risks and the first 90 days</h1>
+  <div class="grid g2">
+    <div class="card"><h3>What could go wrong</h3><ul><li>Licensing and caching of vendor data</li><li>Entity and metric mapping across sources</li><li>Reading contract definitions reliably</li><li>Sovereign boundary versus live vendor feeds</li><li>People accepting a system decision unchecked</li></ul></div>
+    <div class="card"><h3>First 90 days</h3><ul><li><b>0-30:</b> map products and data needs, measure today's baseline</li><li><b>31-60:</b> source-by-workflow matrix, MVP scope, build/buy/partner</li><li><b>61-90:</b> one engine live in (In)Alpha and Credit Companion, each with its audit trail</li></ul></div>
+  </div>
+  <aside class="notes">Close on the risks and the plan, then pause for questions.</aside>
+</section>
+
+<!-- 10. Backup divider -->
+<section class="slide">
+  <div class="kicker backup">Backup</div>
+  <h1>Backup slides: only if asked</h1>
+  <p class="sub">The detailed flow · oversight and autonomy · the credit and investment screens · the router · the audit trail</p>
+  <aside class="notes">Do not present these unless a question needs them.</aside>
+</section>
+
+<!-- 11. Backup: how it works -->
+<section class="slide">
+  <div class="kicker backup">Backup · How it works</div>
+  <h1>One user action, an engine that does the work, a human who decides what needs deciding</h1>
+  <div class="row">
+    <div class="card step"><b>User action</b><span>Prepare memo or Generate IC memo</span></div><div class="arrow">→</div>
+    <div class="card step"><b>Router</b><span>Where to look, and what to skip</span></div><div class="arrow">→</div>
+    <div class="card step"><b>Resolver</b><span>Which figure, and why</span></div><div class="arrow">→</div>
+    <div class="card step"><b>Memo with proof</b><span>Every figure linked to its source</span></div><div class="arrow">→</div>
+    <div class="card step"><b>Human oversight</b><span>Review, accept or override</span></div><div class="arrow">→</div>
+    <div class="card step"><b>Audit trail</b><span>Every step replayable</span></div>
+  </div>
+  <div class="grid g2">
+    <div class="card">
+      <h3>What happens before the result</h3>
+      <ul>
+        <li>The request arrives with its context: memo type, persona, workflow, client, constraints</li>
+        <li>Documents are read and each figure is pinned to entity, period, unit and definition</li>
+        <li>The router plans where to look and records what it skipped</li>
+        <li>Figures are extracted, compared, and the gap explained</li>
+        <li>The trust rule is applied: the engine decides and explains why</li>
+      </ul>
+    </div>
+    <div class="card">
+      <h3>Two products, one engine</h3>
+      <p><b>Credit Companion:</b> upload the documents, click Prepare memo. Question: is the borrower within its covenant?</p>
+      <p style="margin-top:10px"><b>(In)Alpha:</b> choose the target, click Generate IC memo. Question: what multiple is the target trading at?</p>
+    </div>
+  </div>
+  <aside class="notes">Walk left to right. The only user step is the first box.</aside>
+</section>
+
+<!-- 12. Backup: oversight -->
+<section class="slide">
+  <div class="kicker backup">Backup · Oversight</div>
+  <h1>The engine decides by default. You stay in control.</h1>
+  <div class="grid g3">
+    <div class="card"><span class="pill p-green">Settled</span><h3 style="margin-top:10px">Sources agree</h3><p>Verified. Nothing to do.</p></div>
+    <div class="card"><span class="pill p-blue">Decided by the system</span><h3 style="margin-top:10px">Every conflict</h3><p>The system always decides and explains why. You review it, accept it, or change it with a reason. Examples: Adjusted EBITDA is the loan agreement definition ($150.5M); the multiple is 12.4x LTM and 12.8x NTM, both labelled.</p></div>
+    <div class="card"><span class="pill p-amber">Optional: sign-off</span><h3 style="margin-top:10px">Set by client policy</h3><p>A client can require a named person to sign off specific figures, for example those that drive a covenant or a rating. Off by default: the system still decides first.</p></div>
+  </div>
+  <div class="grid g2">
+    <div class="card hl"><h3>An autonomy dial, per client and workflow</h3><p>The default is that the system decides and you review. A client can tighten it for specific figures, and the platform recommends when to tighten or loosen it from the override rates.</p></div>
+    <div class="card"><h3>Accountability stays visible</h3><p>The audit trail records who decided: the system or a person, the rule applied, and any override with its reason. Overrides teach the platform.</p></div>
+  </div>
+  <aside class="notes">In both cases the system always decides and explains why. Named sign-off is an optional client policy.</aside>
+</section>
+
+<!-- 13. Backup: credit screen -->
+<section class="slide">
+  <div class="kicker backup">Backup · Credit case screen</div>
+  <h1>Pick one: the loan agreement's definition wins</h1>
+  <div class="grid g2">
+    <div class="card">
+      <h3>What the committee sees</h3>
+      <ul>
+        <li>Memo with each figure marked: verified, or decided by the system</li>
+        <li>Click a figure: the system's decision in plain words</li>
+        <li>Each option shows its effect on leverage</li>
+        <li>Accept it, or change it with a reason, before submitting</li>
+      </ul>
+      <p style="margin-top:12px"><span class="pill p-blue">Decided by the system</span> &nbsp; Adjusted EBITDA</p>
+    </div>
+    <div style="display:grid;gap:10px">
+      <div class="opt sel"><div class="radio"></div><div><div class="t">Loan agreement definition <span class="pill p-green">System's choice</span></div><div class="v">$150.5M</div><div class="i">Leverage 3.11x · headroom 0.39x</div></div></div>
+      <div class="opt"><div class="radio"></div><div><div class="t">Audited accounts basis</div><div class="v">$142.0M</div><div class="i">Leverage 3.30x · headroom 0.20x</div></div></div>
+      <div class="opt"><div class="radio"></div><div><div class="t">Management headline</div><div class="v">$155.0M</div><div class="i">Leverage 3.02x · headroom 0.48x</div></div></div>
+    </div>
+  </div>
+  <div class="foot">Illustrative demo data</div>
+  <aside class="notes">Backup preview of the credit screen. Use the live prototype if possible.</aside>
+</section>
+
+<!-- 14. Backup: investment screen -->
+<section class="slide">
+  <div class="kicker backup">Backup · Investment case screen</div>
+  <h1>Label both: 12.4x and 12.8x are each right</h1>
+  <div class="grid g2">
+    <div class="card">
+      <h3>Why two numbers</h3>
+      <ul>
+        <li>Enterprise value $2,604.0M ÷ last-twelve-months EBITDA $210.0M = <b>12.4x</b></li>
+        <li>Enterprise value ÷ forward consensus EBITDA $203.4M = <b>12.8x</b></li>
+        <li>Same numerator, different earnings basis: not an error</li>
+        <li>We never average. We show both, each labelled</li>
+      </ul>
+    </div>
+    <div style="display:grid;gap:10px">
+      <div class="opt sel"><div class="radio"></div><div><div class="t">Show both, labelled <span class="pill p-green">System's choice</span></div><div class="v">12.4x LTM · 12.8x NTM</div><div class="i">Memo reads: "12.4x LTM (12.8x on forward consensus)"</div></div></div>
+      <div class="opt"><div class="radio"></div><div><div class="t">LTM reported only</div><div class="v">12.4x</div><div class="i">Firmest number, ignores next year</div></div></div>
+      <div class="opt"><div class="radio"></div><div><div class="t">Forward consensus only</div><div class="v">12.8x</div><div class="i">Expected earnings, not audited</div></div></div>
+    </div>
+  </div>
+  <p class="sub">Against a peer median of 11.1x. Same engine as the credit case, a different decision.</p>
+  <div class="foot">Illustrative demo data</div>
+  <aside class="notes">Backup preview of the investment screen.</aside>
+</section>
+
+<!-- 15. Backup: router -->
+<section class="slide">
+  <div class="kicker backup">Backup · The router</div>
+  <h1>Where we looked, and what we skipped</h1>
+  <div class="grid g2">
+    <div class="card">
+      <h3>Credit case</h3>
+      <table>
+        <tr><th>Source</th><th>Status</th><th>Why</th></tr>
+        <tr><td>Loan agreement</td><td><span class="pill p-green">Used</span></td><td>Decided the EBITDA figure</td></tr>
+        <tr><td>Audited annual report</td><td><span class="pill p-green">Used</span></td><td>Confirmed 2 figures</td></tr>
+        <tr><td>Lender presentation</td><td><span class="pill p-green">Used</span></td><td>Showed management's view</td></tr>
+        <tr><td>FactSet, Bloomberg</td><td><span class="pill p-grey">Skipped</span></td><td>Private borrower, no coverage</td></tr>
+        <tr><td>Rating agency</td><td><span class="pill p-grey">Skipped</span></td><td>Borrower not rated</td></tr>
+      </table>
+      <p style="margin-top:10px"><b>Sources used: 3 · skipped: 3</b></p>
+    </div>
+    <div class="card">
+      <h3>Investment case</h3>
+      <table>
+        <tr><th>Source</th><th>Status</th><th>Why</th></tr>
+        <tr><td>Stored annual report</td><td><span class="pill p-green">Reused</span></td><td>Confirmed revenue and EBITDA</td></tr>
+        <tr><td>FactSet (batch)</td><td><span class="pill p-green">Used</span></td><td>History, plus peers</td></tr>
+        <tr><td>Bloomberg (live)</td><td><span class="pill p-blue">Used once</span></td><td>Price and forward view only</td></tr>
+        <tr><td>PitchBook</td><td><span class="pill p-grey">Skipped</span></td><td>Listed company</td></tr>
+        <tr><td>AlphaSense / news</td><td><span class="pill p-grey">Skipped</span></td><td>Not needed</td></tr>
+      </table>
+      <p style="margin-top:10px"><b>Sources used: 3 · skipped: 2</b></p>
+    </div>
+  </div>
+  <p class="sub">Default rules: stored or borrower documents first, lower-cost vendor next, a live lookup only for what must be live. Every skip has a reason, and a client can override a default rule.</p>
+  <div class="foot">Illustrative demo data</div>
+  <aside class="notes">The router made visible. Cost and response times stay with the product team.</aside>
+</section>
+
+<!-- 16. Backup: audit trail -->
+<section class="slide">
+  <div class="kicker backup">Backup · The audit trail</div>
+  <h1>Every path is auditable</h1>
+  <div class="card">
+    <div class="label" style="margin-bottom:10px">What started this: You clicked "Prepare memo" in Credit Companion. Everything below follows from that one action.</div>
+    <div class="chain">
+      <div><code>#001</code><span class="actor a-sys">System</span><span>Needed FY2025 Adjusted EBITDA to complete the memo.</span></div>
+      <div><code>#002</code><span class="actor a-rou">Router</span><span>Looked in: loan agreement, audited annual report, lender presentation. Skipped: FactSet and Bloomberg (private borrower), rating agency (not rated).</span></div>
+      <div><code>#003</code><span class="actor a-rou">Router</span><span>Found: management $155.0M (p.12), audited $142.0M (p.68), loan agreement definition applied gives $150.5M (p.31).</span></div>
+      <div><code>#004</code><span class="actor a-res">Resolver</span><span>Compared: they differ by up to 9.2%. $8.5M share-based pay is allowed; a $4.5M lease adjustment is not.</span></div>
+      <div><code>#005</code><span class="actor a-res">Resolver</span><span>Applied the rule and decided $150.5M.</span></div>
+      <div><code>#006</code><span class="actor a-you">You</span><span>Accepted the system's decision. Saved as the default rule for Falcon memos.</span></div>
+    </div>
+  </div>
+  <p class="sub">Numbered, timed, linked to the source page, exportable as an audit pack. A skipped source is recorded too.</p>
+  <div class="foot">Illustrative demo data</div>
+  <aside class="notes">Backup. Start with "what started this", then one figure's chain.</aside>
+</section>
+
+<div class="nav">
+  <button id="prev">← Back</button>
+  <span id="count">1 / 16</span>
+  <button id="next">Next →</button>
+  <span class="hint">Arrow keys to move · N for speaker notes · Print to save as PDF</span>
+</div>
+
+<script>
+  var slides = Array.prototype.slice.call(document.querySelectorAll('.slide'));
+  var idx = 0;
+  function show(n) {
+    idx = Math.max(0, Math.min(slides.length - 1, n));
+    slides.forEach(function (s, k) { s.classList.toggle('active', k === idx); });
+    document.getElementById('count').textContent = (idx + 1) + ' / ' + slides.length;
+    try { history.replaceState(null, '', '#' + (idx + 1)); } catch (e) {}
+  }
+  document.getElementById('prev').onclick = function () { show(idx - 1); };
+  document.getElementById('next').onclick = function () { show(idx + 1); };
+  document.addEventListener('keydown', function (e) {
+    if (e.key === 'ArrowRight' || e.key === 'PageDown' || e.key === ' ') { e.preventDefault(); show(idx + 1); }
+    else if (e.key === 'ArrowLeft' || e.key === 'PageUp') { show(idx - 1); }
+    else if (e.key === 'n' || e.key === 'N') { document.body.classList.toggle('show-notes'); }
+  });
+  var start = parseInt(location.hash.slice(1), 10);
+  show(start ? start - 1 : 0);
+</script>
+</body>
+</html>

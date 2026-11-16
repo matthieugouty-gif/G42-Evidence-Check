@@ -1,0 +1,1914 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Evidence Check</title>
+  <script crossorigin src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
+  <script crossorigin src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
+  <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet" />
+  <style>
+    * { font-family: 'Inter', sans-serif; }
+    body { background-color: #F8FAFC; }
+  </style>
+</head>
+<body class="bg-slate-50">
+  <div id="root"></div>
+
+  <script type="text/babel">
+    const { useState, useEffect } = React;
+
+    // ======================================================================
+    // DATA: two cases, one engine. All numbers are illustrative demo data.
+    // ======================================================================
+    const CASES = {
+      credit: {
+        id: "credit",
+        clientName: "Falcon",
+        user: "You (Lead Underwriter)",
+        memo: {
+          title: "Project Falcon — Credit Memo",
+          id: "IC-FALCON-2025-V2.4",
+          facts: [
+            ["Borrower", "Falcon Industrial Holdings Ltd."],
+            ["Period", "FY2025"],
+            ["Facility", "$485.0M Senior Secured Term Loan B"],
+          ],
+        },
+        conflictId: "ebitda",
+        recommendedId: "contract",
+        rule: "When figures disagree we trust, in order: 1) the loan agreement's own definition, 2) audited filings, 3) management presentations and data vendors.",
+        gapNote: "Figures differ by up to 9.2%.",
+        autonomy: { mode: "auto", signoffReason: "", autoReason: "the loan agreement's own definition ranks first in the trust order, and the 3.50x covenant is tested on it. You can review the decision and change it." },
+        figureOrder: ["ebitda", "revenue", "netdebt", "cap", "leverage"],
+        figures: {
+          revenue: {
+            id: "revenue", label: "FY2025 revenue", kind: "verified", valueText: "$840.0M",
+            sources: [
+              { name: "Annual Report p.42", text: "$840.0M", docId: "ar-p42" },
+              { name: "Lender presentation p.9", text: "$840.0M", docId: "lp-p9" },
+            ],
+            why: "The audited annual report and the lender presentation give the same number.",
+            docId: "ar-p42",
+            summary: "Annual report and lender presentation agree",
+          },
+          ebitda: {
+            id: "ebitda", label: "Adjusted EBITDA", kind: "conflict",
+            verdict: { heading: "The system's choice, and the alternatives", confirmLabel: "Confirm this figure", challengeLabel: "Challenge and use this figure" },
+            options: {
+              contract: {
+                id: "contract", label: "Loan agreement definition", value: 150.5, valueText: "$150.5M", recommended: true,
+                why: "This is the EBITDA defined in the loan agreement (Section 1.01, p.31). The 3.50x limit is tested on this definition, so it is the figure the committee should rely on.",
+                detail: "$142.0M audited operating EBITDA + $8.5M share-based pay (allowed by the agreement). The $4.5M lease adjustment is not allowed.",
+                docId: "ca-p31",
+              },
+              audited: {
+                id: "audited", label: "Audited accounts basis", value: 142.0, valueText: "$142.0M", recommended: false,
+                why: "The audited operating figure with no add-backs. Firm, but it ignores the $8.5M share-based pay the loan agreement allows, so it understates covenant EBITDA.",
+                detail: "Annual report note 14: operating EBITDA before any add-backs.",
+                docId: "ar-p68a",
+              },
+              management: {
+                id: "management", label: "Management headline (lender presentation)", value: 155.0, valueText: "$155.0M", recommended: false,
+                why: "Management's adjusted figure. It adds a $4.5M lease adjustment that the loan agreement does not allow, so it overstates covenant EBITDA.",
+                detail: "Lender presentation p.12; bridge in annual report note 14.",
+                docId: "lp-p12",
+              },
+            },
+          },
+          netdebt: {
+            id: "netdebt", label: "Net debt", kind: "verified", valueText: "$468.0M",
+            sources: [
+              { name: "Annual Report p.70", text: "$468.0M", docId: "ar-p70" },
+              { name: "Lender presentation p.14", text: "$468.0M", docId: "lp-p14" },
+            ],
+            why: "The audited annual report and the lender presentation give the same number.",
+            docId: "ar-p70",
+            summary: "Annual report and lender presentation agree",
+          },
+          cap: {
+            id: "cap", label: "Maximum leverage allowed", kind: "verified", valueText: "3.50x",
+            sources: [{ name: "Loan agreement §7.02(a), p.142", text: "3.50x" }],
+            why: "Read directly from the signed loan agreement (the final version, not a draft).",
+            docId: "ca-p142",
+            summary: "Read from the signed loan agreement",
+          },
+          leverage: {
+            id: "leverage", label: "Leverage ratio", kind: "derived",
+            summary: "Net debt divided by the EBITDA decision",
+          },
+        },
+        derived: {
+          compute: (optId) => {
+            const v = CASES.credit.figures.ebitda.options[optId].value;
+            const r = 468.0 / v;
+            const h = 3.5 - r;
+            return {
+              ratioText: r.toFixed(2) + "x",
+              headroomText: h.toFixed(2) + "x",
+              line: "Net debt $468.0M ÷ EBITDA $" + v.toFixed(1) + "M = " + r.toFixed(2) + "x · Limit 3.50x · Headroom " + h.toFixed(2) + "x",
+            };
+          },
+        },
+        impact: (opt) => {
+          const r = 468.0 / opt.value;
+          return "Leverage would be " + r.toFixed(2) + "x · headroom " + (3.5 - r).toFixed(2) + "x";
+        },
+        paragraphs: [
+          ["Falcon Industrial Holdings Ltd. generated ", { chip: "revenue" }, " of revenue in FY2025. Earnings quality is solid: Adjusted EBITDA was ", { chip: "ebitda" }, "."],
+          ["Net debt stands at ", { chip: "netdebt" }, ". The loan agreement caps leverage at ", { chip: "cap" }, "."],
+          ["On this basis leverage is ", { chip: "leverage" }, ", leaving ", { derived: "headroomText" }, " of headroom — the company remains within the covenant."],
+        ],
+        documents: {
+          "ar-p42": { name: "Annual Report 2025", page: "42", title: "Income statement", kind: "table", rows: [
+            { label: "Revenue", value: "840.0", hl: true },
+            { label: "Cost of sales", value: "(512.4)" },
+            { label: "Gross profit", value: "327.6" },
+            { label: "Operating expenses", value: "(233.9)" },
+            { label: "Operating profit", value: "93.7" },
+          ] },
+          "ar-p68": { name: "Annual Report 2025", page: "68", title: "Note 14 Adjusted EBITDA", kind: "table", rows: [
+            { label: "Operating EBITDA", value: "142.0" },
+            { label: "Share-based compensation", value: "+8.5" },
+            { label: "IFRS 16 lease adjustment", value: "+4.5" },
+            { label: "Adjusted EBITDA (management)", value: "155.0", hl: true },
+          ] },
+          "ar-p70": { name: "Annual Report 2025", page: "70", title: "Net debt", kind: "table", rows: [
+            { label: "Borrowings", value: "520.0" },
+            { label: "Cash and equivalents", value: "(52.0)" },
+            { label: "Net debt", value: "468.0", hl: true },
+          ] },
+          "ca-p31": { name: "Loan Agreement", page: "31", title: "Section 1.01 Definitions", kind: "quote", rows: [
+            { label: "\"Consolidated EBITDA\" means", value: "operating profit before depreciation and amortisation, plus non-cash share-based compensation, and excluding any adjustment arising from IFRS 16 (leases), which shall be tested on a frozen-GAAP basis.", hl: true },
+          ] },
+          "ca-p142": { name: "Loan Agreement", page: "142", title: "Section 7.02(a) Financial covenant", kind: "quote", rows: [
+            { label: "The Borrower shall not permit", value: "the Total Net Leverage Ratio to exceed 3.50:1.00 for the Test Period ending 31 December 2025.", hl: true },
+          ] },
+          "lp-p9": { name: "Lender Presentation", page: "9", title: "Financial highlights", kind: "table", rows: [
+            { label: "Revenue FY2025", value: "840.0", hl: true },
+            { label: "Gross profit", value: "327.6" },
+          ] },
+          "lp-p14": { name: "Lender Presentation", page: "14", title: "Capital structure", kind: "table", rows: [
+            { label: "Total borrowings", value: "520.0" },
+            { label: "Cash and equivalents", value: "(52.0)" },
+            { label: "Net debt", value: "468.0", hl: true },
+          ] },
+          "ar-p68a": { name: "Annual Report 2025", page: "68", title: "Note 14 Adjusted EBITDA", kind: "table", rows: [
+            { label: "Operating EBITDA (audited, before add-backs)", value: "142.0", hl: true },
+            { label: "Share-based compensation", value: "+8.5" },
+            { label: "IFRS 16 lease adjustment", value: "+4.5" },
+            { label: "Adjusted EBITDA (management)", value: "155.0" },
+          ] },
+          "lp-p12": { name: "Lender Presentation", page: "12", title: "Adjusted EBITDA", kind: "table", rows: [
+            { label: "Adjusted EBITDA (management)", value: "155.0", hl: true },
+            { label: "Adjusted for share-based pay and IFRS 16 leases", value: "see annual report note 14" },
+          ] },
+        },
+        routerSummary: [
+          { label: "Sources used", value: "3", note: "Loan agreement, annual report, lender presentation" },
+          { label: "Sources skipped", value: "3", note: "FactSet, Bloomberg, rating agency: no data for this borrower" },
+          { label: "Paid vendor calls", value: "0", note: "No vendor fees for this memo" },
+        ],
+        routerRules: [
+          { rule: "Start with the borrower's own package: the signed loan agreement and audited accounts.", why: "They are the binding and audited record. The covenant is tested on the loan agreement, so nothing outranks it." },
+          { rule: "Read management presentations to see their view, but never treat them as the final word.", why: "They are prepared by the borrower and may use favourable adjustments, so they are checked against the audited and contractual documents." },
+          { rule: "Use data vendors only for borrowers they cover; skip them otherwise.", why: "A vendor has no data on a private borrower, so asking would cost time and money for nothing." },
+        ],
+        routerRows: [
+          { name: "Loan agreement", status: "Used", cost: "None (stored copy)", result: "Decided the EBITDA figure", pill: "Decisive", color: "green", found: [
+            { text: "Definition of Consolidated EBITDA (p.31)", docId: "ca-p31" },
+            { text: "Maximum leverage 3.50x (§7.02(a), p.142)", docId: "ca-p142" },
+          ] },
+          { name: "Audited annual report", status: "Used", cost: "None (stored copy)", result: "Confirmed revenue and net debt; explained the EBITDA gap", pill: "Confirmed 2 figures", color: "green", found: [
+            { text: "Revenue $840.0M (p.42)", docId: "ar-p42" },
+            { text: "Net debt $468.0M (p.70)", docId: "ar-p70" },
+            { text: "Operating EBITDA $142.0M, before add-backs (p.68)", docId: "ar-p68a" },
+          ] },
+          { name: "Lender presentation", status: "Used", cost: "None (stored copy)", result: "Showed management's higher figure", pill: "Showed the gap", color: "blue", found: [
+            { text: "Revenue $840.0M (p.9)", docId: "lp-p9" },
+            { text: "Net debt $468.0M (p.14)", docId: "lp-p14" },
+            { text: "Management Adjusted EBITDA $155.0M (p.12)", docId: "lp-p12" },
+          ] },
+          { name: "FactSet", status: "Skipped", cost: "None", result: "Private borrower, no coverage", pill: "Skipped", color: "grey" },
+          { name: "Bloomberg", status: "Skipped", cost: "None", result: "Private borrower, no coverage", pill: "Skipped", color: "grey" },
+          { name: "Rating agency", status: "Skipped", cost: "None", result: "Borrower is not rated", pill: "Skipped", color: "grey" },
+        ],
+        start: {
+          productLabel: "Credit Companion",
+          title: "Prepare credit memo",
+          buttonLabel: "Prepare memo",
+          sections: ["Request and purpose", "Borrower overview", "Industry", "Financial analysis", "Facility structure", "Security", "Covenants and headroom", "Risk rating", "Risks and mitigants", "Recommendation"],
+          keySections: ["Financial analysis", "Covenants and headroom"],
+          figuresNote: "Every figure in the memo is checked. The highlighted sections are the ones shown in this demo (5 key figures).",
+          fields: [
+            ["Borrower", "Falcon Industrial Holdings Ltd."],
+            ["Facility", "$485.0M Senior Secured Term Loan B"],
+            ["Memo type", "Credit memo — new facility approval"],
+            ["Documents", "3 documents: signed loan agreement, audited annual report FY2025, lender presentation"],
+            ["Language", "English or العربية"],
+            ["Focus (optional)", "Covenant headroom on the loan agreement's EBITDA definition"],
+            ["Decision mode", "The system decides; you review and can change"],
+          ],
+          runSteps: [
+            "Reading the documents…",
+            "Finding the signed loan agreement and setting drafts aside…",
+            "Looking for each figure: the package first, vendors checked for coverage…",
+            "Comparing the figures and applying the rule…",
+            "Drafting the memo with sources…",
+          ],
+        },
+        platform: {
+          workflow: "Credit Companion · credit memos",
+          period: "Last 90 days",
+          tiles: [
+            { label: "Memos processed", value: "38", note: "credit memos" },
+            { label: "Conflicts found", value: "41", note: "figures where sources disagreed" },
+            { label: "System decision accepted as is", value: "83%", note: "34 of 41" },
+            { label: "Overridden by the user", value: "17%", note: "7 of 41" },
+          ],
+          router: [
+            { name: "Loan agreement", used: "38 memos", supplied: "38", changed: "31", cost: "None (stored copy)", time: "Instant", note: "Decides most conflicts. Keep it first in the order." },
+            { name: "Audited annual report", used: "38 memos", supplied: "38", changed: "6", cost: "None (stored copy)", time: "Instant", note: "Reliable cross-check. Keep." },
+            { name: "Lender presentation", used: "38 memos", supplied: "38", changed: "2", cost: "None (stored copy)", time: "Instant", note: "Useful for context, never the final word." },
+            { name: "FactSet / Bloomberg", used: "0 memos", supplied: "0", changed: "0", cost: "None (skipped)", time: "Not called", note: "Skipped in 38 of 38 memos: private borrowers. Check coverage at intake instead of at planning." },
+            { name: "Rating agency", used: "5 memos", supplied: "5", changed: "1", cost: "Medium (1 lookup)", time: "2.1 s", note: "Only for rated borrowers (5 of 38). Keep it conditional." },
+          ],
+          resolution: [
+            { verdict: "Pick one: loan agreement definition", issued: "34", accepted: "28", overridden: "6", reasons: "Committee prefers the audited basis (4); amended definition not yet loaded (2)", note: "Add a client rule for audited-basis preference. Detect amended agreements." },
+            { verdict: "Pick one: other definitions", issued: "7", accepted: "6", overridden: "1", reasons: "Policy exception (1)", note: "No change needed." },
+          ],
+          autonomy: [
+            { type: "Covenant-driving figures", rate: "17% overridden", setting: "Decided by the system, reviewed by the user", suggestion: "Keep the system decision with a required review. If the override rate rises above 25%, return covenant figures to sign-off." },
+          ],
+          feedback: {
+            rating: "4.2 / 5", ratingNote: "29 ratings", helpful: "86%", helpfulNote: "found the explanation helpful", problems: "6", problemsNote: "reported: 3 wrong page link, 2 mapping error, 1 missing document",
+            comments: [
+              { score: "4/5", text: "The reason for the loan agreement definition was clear, but I wanted to see the amended version." },
+              { score: "2/5", text: "The evidence link for the lender presentation opened the wrong page." },
+              { score: "5/5", text: "Good that each option shows its effect on leverage." },
+            ],
+          },
+          improvements: [
+            { area: "Router", change: "Skip vendor checks when the borrower is flagged private at intake", evidence: "Vendors were skipped in 38 of 38 memos; the check still added a step to every run", status: "Proposed" },
+            { area: "Resolver", change: "Offer a client rule: prefer the audited basis", evidence: "4 of 6 loan-definition overrides cited committee policy", status: "Proposed" },
+            { area: "Resolver", change: "Detect amended loan agreements and flag the definition as out of date", evidence: "2 overrides: amended definition not loaded", status: "Proposed" },
+            { area: "Router", change: "Fix page links for lender presentation extracts", evidence: "3 'wrong page link' reports", status: "In progress" },
+          ],
+        },
+        routerHelp: "All 5 figures were settled from the borrower's package. 3 external lookups were avoided because they had no data for a private borrower.",
+        routerVerdicts: [
+          { changed: "Yes: decided the EBITDA figure", verdict: "Keep" },
+          { changed: "No: confirmed the figures and explained the gap", verdict: "Keep" },
+          { changed: "No: showed the management view, never the final word", verdict: "Keep for context" },
+          { changed: "Not applicable: no data for this borrower", verdict: "Skip for private borrowers" },
+          { changed: "Not applicable: no data for this borrower", verdict: "Skip for private borrowers" },
+          { changed: "Not applicable: the borrower is not rated", verdict: "Skip for unrated borrowers" },
+        ],
+        audit: {
+          ebitda: [
+            { time: "09:44", actor: "System", text: "Needed FY2025 Adjusted EBITDA to complete the memo you asked for at 09:43." },
+            { time: "09:44", actor: "Router", text: "Looked in: loan agreement, audited annual report, lender presentation. Skipped: FactSet and Bloomberg (private borrower, no coverage) and the rating agency (borrower is not rated)." },
+            { time: "09:45", actor: "Router", text: "Found: lender presentation p.12 — $155.0M (management headline); annual report p.68 — $142.0M (operating, before add-backs); loan agreement p.31 — its definition applied to the annual report gives $150.5M.", docIds: ["lp-p12", "ar-p68a", "ca-p31"] },
+            { time: "09:46", actor: "Resolver", text: "Compared the figures: they differ by up to 9.2%. The gap comes from $8.5M of share-based pay (allowed by the loan agreement) and a $4.5M lease adjustment (not allowed)." },
+            { time: "09:46", actor: "Resolver", text: "Applied the rule: loan agreement definition first, then audited filings, then management presentations and vendors." },
+            { time: "09:47", actor: "Resolver", text: "Chose $150.5M (loan agreement definition) because the 3.50x limit is tested on this definition.", docId: "ca-p31" },
+            { time: "09:47", actor: "Resolver", text: "Decided automatically: $150.5M (loan agreement definition). You can review the decision and change it.", docId: "ca-p31" },
+          ],
+          revenue: [
+            { time: "09:44", actor: "System", text: "Needed FY2025 revenue for the memo." },
+            { time: "09:44", actor: "Router", text: "Looked in: audited annual report, lender presentation. Skipped: FactSet and Bloomberg (private borrower)." },
+            { time: "09:45", actor: "Router", text: "Found: annual report p.42 — $840.0M; lender presentation p.9 — $840.0M.", docIds: ["ar-p42", "lp-p9"] },
+            { time: "09:45", actor: "Resolver", text: "Compared the figures: they agree." },
+            { time: "09:45", actor: "System", text: "Placed $840.0M in the memo as verified." },
+          ],
+          netdebt: [
+            { time: "09:44", actor: "System", text: "Needed net debt for the memo." },
+            { time: "09:44", actor: "Router", text: "Looked in: audited annual report, lender presentation. Skipped: FactSet and Bloomberg (private borrower)." },
+            { time: "09:45", actor: "Router", text: "Found: annual report p.70 — $468.0M (borrowings $520.0M less cash $52.0M); lender presentation p.14 — $468.0M.", docIds: ["ar-p70", "lp-p14"] },
+            { time: "09:45", actor: "Resolver", text: "Compared the figures: they agree." },
+            { time: "09:45", actor: "System", text: "Placed $468.0M in the memo as verified." },
+          ],
+          cap: [
+            { time: "09:44", actor: "System", text: "Needed the maximum leverage the loan allows." },
+            { time: "09:44", actor: "Router", text: "Looked in: signed loan agreement only. Draft versions were ignored." },
+            { time: "09:45", actor: "Router", text: "Found: loan agreement §7.02(a), p.142 — 3.50x.", docId: "ca-p142" },
+            { time: "09:45", actor: "Resolver", text: "Only one authoritative source, so no comparison was needed." },
+            { time: "09:45", actor: "System", text: "Placed 3.50x in the memo as verified." },
+          ],
+          leverage: [
+            { time: "09:47", actor: "System", text: "Needed the leverage ratio for the covenant check." },
+            { time: "09:47", actor: "Resolver", text: "Calculated net debt ($468.0M) divided by the EBITDA decision." },
+          ],
+        },
+        qa: {
+          en: ["What EBITDA are we using, and why?", "What is the maximum leverage ratio?"],
+          ar: ["ما هو الـ EBITDA المستخدم ولماذا؟", "ما هو الحد الأقصى لنسبة الرافعة المالية؟"],
+          answer: (q, lang, c) => {
+            const s = q.toLowerCase();
+            if (s.includes("ebitda") || s.includes("earnings") || s.includes("why") || s.includes("أرباح")) {
+              if (lang === "ar") {
+                const n = c.effNum.toFixed(1);
+                const base = "هذا هو تعريف الأرباح قبل الفوائد والضرائب والاستهلاك في اتفاقية القرض، وهو أساس اختبار نسبة الرافعة. تعرض الإدارة 155.0 مليون دولار وتعرض الحسابات المدققة 142.0 مليون دولار.";
+                return { text: c.overridden ? "اخترتَ " + n + " مليون دولار. كان قرار النظام 150.5 مليون دولار. " + base : "نستخدم حالياً " + n + " مليون دولار. " + base, docs: [...new Set([c.effDocId, "ca-p31"].filter(Boolean))] };
+              }
+              const base = "It is the EBITDA defined in the loan agreement, which is the basis for the 3.50x test. Management shows $155.0M and the audited accounts $142.0M; both use a different definition.";
+              return { text: c.overridden ? "You chose " + c.effValueText + " (" + c.effLabel + "). The system's decision was $150.5M. " + base : "We are using " + c.effValueText + ". " + base, docs: [...new Set([c.effDocId, "ca-p31"].filter(Boolean))] };
+            }
+            if (s.includes("leverage") || s.includes("covenant") || s.includes("ratio") || s.includes("الرافعة") || s.includes("نسبة")) {
+              return lang === "ar"
+                ? { text: "الحد الأقصى لنسبة صافي الرافعة المالية هو 3.50x وفقاً للمادة 7.02(أ) من اتفاقية القرض (الصفحة 142). النسبة الحالية " + c.ratioText + "، وهامش الأمان " + c.headroomText + ".", docs: ["ca-p142"] }
+                : { text: "The maximum leverage ratio is 3.50x per Section 7.02(a) of the loan agreement. The current ratio is " + c.ratioText + ", leaving " + c.headroomText + " of headroom.", docs: ["ca-p142"] };
+            }
+            if (s.includes("revenue") || s.includes("إيراد") || s.includes("840")) {
+              return lang === "ar"
+                ? { text: "بلغت الإيرادات 840.0 مليون دولار وفق التقرير السنوي المدقق (الصفحة 42) وعرض المُقرِض.", docs: ["ar-p42"] }
+                : { text: "FY2025 revenue was $840.0M in both the audited annual report (p.42) and the lender presentation.", docs: ["ar-p42"] };
+            }
+            return lang === "ar"
+              ? { text: "حققت فالكون إيرادات بقيمة 840.0 مليون دولار، والأرباح المعدلة " + c.effNum.toFixed(1) + " مليون دولار، والرافعة " + c.ratioText + " ضمن الحد 3.50x.", docs: ["ar-p42"] }
+              : { text: "Falcon generated $840.0M of revenue. Adjusted EBITDA is " + c.effValueText + " and leverage is " + c.ratioText + ", within the 3.50x limit.", docs: ["ar-p42"] };
+          },
+        },
+      },
+
+      invest: {
+        id: "invest",
+        clientName: "Atlas",
+        user: "You (Investment Analyst)",
+        memo: {
+          title: "Project Atlas — Investment Committee Memo",
+          id: "IC-ATLAS-2025-V1.2",
+          facts: [
+            ["Target", "Atlas Logistics plc (listed)"],
+            ["Period", "FY2025 (last twelve months)"],
+            ["Transaction", "Proposed take-private, 100% of shares"],
+          ],
+        },
+        conflictId: "multiple",
+        recommendedId: "both",
+        rule: "When figures differ because of the basis, we show each with its label. When they measure the same thing differently, we trust: 1) audited filings, 2) the primary vendor, 3) the secondary vendor. We never average.",
+        gapNote: "Figures differ by 0.4x because of the basis, not an error.",
+        autonomy: { mode: "auto", signoffReason: "", autoReason: "the two figures measure different bases, and policy allows the system to label basis differences automatically. You can review and change it." },
+        figureOrder: ["multiple", "revenue", "ebitda", "ev", "peer"],
+        figures: {
+          revenue: {
+            id: "revenue", label: "FY2025 revenue", kind: "verified", valueText: "$1,260.0M",
+            sources: [
+              { name: "Annual Report p.51 (stored copy)", text: "$1,260.0M", docId: "ar-p51" },
+              { name: "FactSet", text: "$1,260.0M" },
+            ],
+            why: "The audited annual report and FactSet give the same number.",
+            docId: "ar-p51",
+            summary: "Annual report and FactSet agree",
+          },
+          ebitda: {
+            id: "ebitda", label: "LTM Adjusted EBITDA", kind: "verified", valueText: "$210.0M",
+            sources: [
+              { name: "Annual Report p.54 (stored copy)", text: "$210.0M", docId: "ar-p54" },
+              { name: "FactSet", text: "$210.0M" },
+            ],
+            why: "The audited annual report and FactSet give the same number.",
+            docId: "ar-p54",
+            summary: "Annual report and FactSet agree",
+          },
+          ev: {
+            id: "ev", label: "Enterprise value", kind: "verified", valueText: "$2,604.0M",
+            sources: [{ name: "Bloomberg live lookup", text: "$2,604.0M" }],
+            why: "Live share price × shares in issue + net debt. A stored copy would be out of date, so this one needs a live lookup.",
+            vendorNote: "Live market data, collected today 09:42",
+            docId: "bb-snap",
+            summary: "Live lookup, single source",
+          },
+          multiple: {
+            id: "multiple", label: "EV/EBITDA multiple", kind: "conflict",
+            verdict: { heading: "The system's choice, and the alternatives", confirmLabel: "Confirm this presentation", challengeLabel: "Challenge and use this presentation" },
+            options: {
+              both: {
+                id: "both", label: "Show both, labelled", valueText: "12.4x LTM · 12.8x NTM", recommended: true,
+                why: "The two multiples do not conflict: they divide the same enterprise value by different earnings. 12.4x uses reported LTM EBITDA from the annual report; 12.8x uses analysts' forward (NTM) estimate. Showing both, each labelled, is clearest for the committee.",
+                detail: "EV $2,604.0M ÷ LTM EBITDA $210.0M = 12.4x. EV ÷ NTM consensus $203.4M = 12.8x.",
+                docId: "ar-p54",
+                docLinks: [{ label: "12.4x LTM: see annual report p.54 →", docId: "ar-p54" }, { label: "12.8x NTM: see Bloomberg snapshot →", docId: "bb-snap" }],
+                impact: "Memo reads: \"12.4x LTM (12.8x on forward consensus)\"",
+              },
+              ltm: {
+                id: "ltm", label: "LTM reported only", valueText: "12.4x", recommended: false,
+                why: "Based on audited, reported earnings, so it is the firmest number, but it ignores what analysts expect next year.",
+                detail: "EV $2,604.0M ÷ LTM EBITDA $210.0M = 12.4x.",
+                docId: "ar-p54",
+                docLinks: [{ label: "12.4x LTM: see annual report p.54 →", docId: "ar-p54" }],
+                impact: "Memo reads: \"12.4x LTM\"",
+              },
+              ntm: {
+                id: "ntm", label: "Forward consensus only", valueText: "12.8x", recommended: false,
+                why: "Reflects expected earnings, but rests on analyst estimates that are not audited. Here analysts expect a small dip.",
+                detail: "EV $2,604.0M ÷ NTM consensus EBITDA $203.4M = 12.8x.",
+                vendorNote: "Analyst consensus (NTM), collected today 09:42",
+                docId: "bb-snap",
+                docLinks: [{ label: "12.8x NTM: see Bloomberg snapshot →", docId: "bb-snap" }],
+                impact: "Memo reads: \"12.8x NTM\"",
+              },
+            },
+          },
+          peer: {
+            id: "peer", label: "Peer median EV/EBITDA", kind: "verified", valueText: "11.1x",
+            sources: [{ name: "FactSet", text: "11.1x", note: "8 listed logistics peers" }],
+            why: "Median of the peer set from the lower-cost vendor.",
+            vendorNote: "Vendor data, collected today 09:41",
+            docId: "fs-peers",
+            summary: "FactSet peer set of 8 companies",
+          },
+        },
+        derived: null,
+        impact: (opt) => opt.impact,
+        paragraphs: [
+          ["Atlas Logistics plc generated ", { chip: "revenue" }, " of revenue in FY2025, with LTM Adjusted EBITDA of ", { chip: "ebitda" }, "."],
+          ["At a current enterprise value of ", { chip: "ev" }, ", the company trades at ", { chip: "multiple" }, ", against a peer median of ", { chip: "peer" }, "."],
+          ["The difference between the two multiples reflects the earnings basis, not a data error: analysts expect forward EBITDA of $203.4M, slightly below the last twelve months."],
+        ],
+        documents: {
+          "bb-snap": { name: "Bloomberg data snapshot", page: "1", title: "Live market data and consensus, collected today 09:42", kind: "table", rows: [
+            { label: "Enterprise value (live share price × shares in issue + net debt)", value: "2,604.0", hl: true },
+            { label: "Forward (NTM) consensus EBITDA", value: "203.4", hl: true },
+            { label: "Implied EV / NTM EBITDA", value: "12.8x" },
+            { label: "Collected", value: "today 09:42" },
+          ] },
+          "fs-peers": { name: "FactSet peer set", page: "1", title: "Listed logistics peers, EV/EBITDA, collected today 09:41", kind: "table", rows: [
+            { label: "Peer median EV/EBITDA", value: "11.1x", hl: true },
+            { label: "Number of peers", value: "8 listed logistics companies" },
+            { label: "Collected", value: "today 09:41" },
+          ] },
+          "ar-p51": { name: "Atlas Annual Report 2025", page: "51", title: "Income statement", kind: "table", rows: [
+            { label: "Revenue", value: "1,260.0", hl: true },
+            { label: "Cost of sales", value: "(905.0)" },
+            { label: "Gross profit", value: "355.0" },
+            { label: "Operating expenses", value: "(213.0)" },
+            { label: "Operating profit", value: "142.0" },
+          ] },
+          "ar-p54": { name: "Atlas Annual Report 2025", page: "54", title: "Adjusted EBITDA", kind: "table", rows: [
+            { label: "Operating profit", value: "142.0" },
+            { label: "Depreciation and amortisation", value: "+68.0" },
+            { label: "Adjusted EBITDA (LTM, reported)", value: "210.0", hl: true },
+          ] },
+        },
+        routerSummary: [
+          { label: "Sources used", value: "3", note: "Stored annual report, FactSet, Bloomberg" },
+          { label: "Sources skipped", value: "2", note: "PitchBook, AlphaSense: not needed for these figures" },
+          { label: "Paid vendor calls", value: "2", note: "One low-cost FactSet batch, one live Bloomberg lookup" },
+        ],
+        routerRules: [
+          { rule: "Use the stored copy of the filings first.", why: "Published filings do not change, so there is no reason to pay for them again." },
+          { rule: "Use the lower-cost vendor for history and peers.", why: "Historical and peer data is as good from the cheaper source, so the dearer one is kept for what only it can do." },
+          { rule: "Pay for a live lookup only for what must be live.", why: "Prices and enterprise value move by the minute, so a stored copy would be out of date. Everything else can wait." },
+        ],
+        routerRows: [
+          { name: "Stored filings copy (Annual Report 2025)", status: "Reused", cost: "None (copy held, checked today)", result: "Confirmed revenue and EBITDA", pill: "Confirmed 2 figures", color: "green", found: [
+            { text: "Revenue $1,260.0M (p.51)", docId: "ar-p51" },
+            { text: "LTM Adjusted EBITDA $210.0M (p.54)", docId: "ar-p54" },
+          ] },
+          { name: "FactSet (batch)", status: "Used", cost: "Low (1 batch call) · about 1.2 s (illustrative)", result: "Matched on revenue and EBITDA; supplied the peer median", pill: "Cross-check + peers", color: "blue", found: [
+            { text: "Revenue $1,260.0M and LTM EBITDA $210.0M: both match the annual report" },
+            { text: "Peer median EV/EBITDA 11.1x across 8 listed peers (vendor data, collected 09:41)", docId: "fs-peers" },
+          ] },
+          { name: "Bloomberg (single live lookup)", status: "Used", cost: "Higher (1 live call) · about 0.3 s (illustrative)", result: "Needed only for the live price and the forward consensus view", pill: "Added the forward view", color: "blue", found: [
+            { text: "Enterprise value $2,604.0M (live data, collected 09:42)", docId: "bb-snap" },
+            { text: "Forward (NTM) consensus EBITDA $203.4M (collected 09:42)", docId: "bb-snap" },
+          ] },
+          { name: "PitchBook", status: "Skipped", cost: "None", result: "Listed company; private deal comparables not needed", pill: "Skipped", color: "grey" },
+          { name: "AlphaSense / news", status: "Skipped", cost: "None", result: "Not needed for these figures", pill: "Skipped", color: "grey" },
+        ],
+        start: {
+          productLabel: "(In)Alpha · Due Diligence Accelerate",
+          title: "Generate IC memo",
+          buttonLabel: "Generate IC memo",
+          sections: ["Executive summary", "Company and thesis", "Market and competition", "Financials", "Valuation", "Transaction and returns", "Due diligence findings", "Risks and mitigants", "ESG and compliance", "Next steps"],
+          keySections: ["Financials", "Valuation"],
+          figuresNote: "Every figure in the memo is checked. The highlighted sections are the ones shown in this demo (5 key figures).",
+          fields: [
+            ["Target", "Atlas Logistics plc (listed)"],
+            ["Request", "Analyze 5-year EBITDA trend and current valuation multiples relative to industry peers"],
+            ["Memo type", "Investment Committee memo — proposed take-private"],
+            ["Documents", "1 document: Atlas Annual Report 2025 (published filing)"],
+            ["Language", "English or العربية"],
+            ["Focus (optional)", "Valuation against peers"],
+            ["Decision mode", "The system decides; you review and can change"],
+          ],
+          runSteps: [
+            "Splitting the request: history, live data, peers…",
+            "Using the stored filings copy and a low-cost batch for history and peers…",
+            "One live lookup for price, enterprise value and forward consensus…",
+            "Comparing the multiples and applying the rule…",
+            "Drafting the memo with sources…",
+          ],
+        },
+        platform: {
+          workflow: "(In)Alpha · investment memos",
+          period: "Last 90 days",
+          tiles: [
+            { label: "Memos processed", value: "52", note: "IC memos" },
+            { label: "Conflicts found", value: "52", note: "figures where sources differed" },
+            { label: "System decision accepted as is", value: "90%", note: "47 of 52" },
+            { label: "Overridden by the user", value: "10%", note: "5 of 52" },
+          ],
+          router: [
+            { name: "Stored annual report", used: "52 memos", supplied: "52", changed: "2", cost: "None (copy held)", time: "Instant", note: "Confirms the figures at no cost. Keep first." },
+            { name: "FactSet (batch)", used: "52 memos", supplied: "52", changed: "4", cost: "Low (1 batch call)", time: "1.2 s", note: "Good value for history and peers. Keep." },
+            { name: "Bloomberg (live)", used: "52 memos", supplied: "52", changed: "3", cost: "Higher (1 live call)", time: "0.3 s", note: "Called in every memo but changed the answer in 3 of 52. Call it only when a live price or forward view is needed." },
+            { name: "PitchBook", used: "9 memos", supplied: "9", changed: "5", cost: "Low", time: "0.8 s", note: "Valuable for private-market targets only. Keep it conditional." },
+            { name: "AlphaSense / news", used: "6 memos", supplied: "6", changed: "1", cost: "Medium", time: "2.1 s", note: "Rarely changes the answer. Keep as an option." },
+          ],
+          resolution: [
+            { verdict: "Label both (basis differs)", issued: "52", accepted: "47", overridden: "5", reasons: "Analyst wanted LTM only for the headline (3); committee asked for forward only (2)", note: "Add the option: LTM headline, NTM in brackets." },
+          ],
+          autonomy: [
+            { type: "Basis differences (label both)", rate: "10% overridden", setting: "Decided by the system", suggestion: "Keep automatic. Return to sign-off if the override rate rises above 15%." },
+          ],
+          feedback: {
+            rating: "4.4 / 5", ratingNote: "41 ratings", helpful: "90%", helpfulNote: "found the explanation helpful", problems: "4", problemsNote: "reported: 2 stale vendor data, 1 wrong page link, 1 peer set questioned",
+            comments: [
+              { score: "5/5", text: "Clear why there are two multiples." },
+              { score: "3/5", text: "I would like LTM in the headline and NTM in brackets." },
+              { score: "3/5", text: "The peer set looked out of date." },
+            ],
+          },
+          improvements: [
+            { area: "Router", change: "Call Bloomberg live only when the memo needs a live price or forward view", evidence: "Changed the answer in 3 of 52 memos, and it has the highest cost per call", status: "Proposed" },
+            { area: "Router", change: "Keep the FactSet peer set for the day", evidence: "The same peer set was requested in 9 memos on the same day", status: "Proposed" },
+            { area: "Resolver", change: "Add the presentation option: LTM headline, NTM in brackets", evidence: "3 of 5 overrides asked for it", status: "Proposed" },
+            { area: "Resolver", change: "Keep deciding automatically whenever only the basis differs", evidence: "90% of decisions accepted as is", status: "In place" },
+          ],
+        },
+        routerHelp: "The live Bloomberg lookup was needed for 2 figures and nothing else, so it was called once. The stored copy and the lower-cost vendor covered everything else.",
+        routerVerdicts: [
+          { changed: "No: confirmed the figures", verdict: "Keep" },
+          { changed: "No: matched the filings and supplied the peer set", verdict: "Keep" },
+          { changed: "Yes: gave the 12.8x forward view", verdict: "Keep, for live data only" },
+          { changed: "Not applicable: not needed for a listed target", verdict: "Skip for listed targets" },
+          { changed: "Not applicable: not needed for these figures", verdict: "Skip unless the memo needs news or transcripts" },
+        ],
+        audit: {
+          multiple: [
+            { time: "09:41", actor: "System", text: "Needed how Atlas trades against its peers (EV/EBITDA), from the request you made at 09:40." },
+            { time: "09:41", actor: "Router", text: "Looked in: stored annual report copy, FactSet (batch), Bloomberg (one live lookup). Skipped: PitchBook (listed company) and AlphaSense (not needed)." },
+            { time: "09:42", actor: "Router", text: "Found: annual report p.54 — LTM EBITDA $210.0M; Bloomberg — enterprise value $2,604.0M and forward (NTM) consensus EBITDA $203.4M; FactSet — LTM multiple 12.4x.", docIds: ["ar-p54", "bb-snap"] },
+            { time: "09:43", actor: "Resolver", text: "Compared the figures: 12.4x and 12.8x differ by 0.4x because of the earnings basis (last twelve months versus next twelve months), not because of an error." },
+            { time: "09:43", actor: "Resolver", text: "Applied the rule: when the basis differs, show each with its label; never average." },
+            { time: "09:44", actor: "Resolver", text: "Decided automatically: show both multiples, each labelled. Policy allows the system to decide this kind of figure; you can review and change it.", docIds: ["ar-p54", "bb-snap"] },
+          ],
+          revenue: [
+            { time: "09:41", actor: "System", text: "Needed FY2025 revenue for the memo." },
+            { time: "09:41", actor: "Router", text: "Looked in: stored annual report copy, FactSet (batch). No live lookup needed." },
+            { time: "09:42", actor: "Router", text: "Found: annual report p.51 — $1,260.0M; FactSet — $1,260.0M.", docId: "ar-p51" },
+            { time: "09:42", actor: "Resolver", text: "Compared the figures: they agree." },
+            { time: "09:42", actor: "System", text: "Placed $1,260.0M in the memo as verified." },
+          ],
+          ebitda: [
+            { time: "09:41", actor: "System", text: "Needed LTM Adjusted EBITDA for the memo." },
+            { time: "09:41", actor: "Router", text: "Looked in: stored annual report copy, FactSet (batch)." },
+            { time: "09:42", actor: "Router", text: "Found: annual report p.54 — $210.0M; FactSet — $210.0M.", docId: "ar-p54" },
+            { time: "09:42", actor: "Resolver", text: "Compared the figures: they agree." },
+            { time: "09:42", actor: "System", text: "Placed $210.0M in the memo as verified." },
+          ],
+          ev: [
+            { time: "09:41", actor: "System", text: "Needed the current enterprise value." },
+            { time: "09:42", actor: "Router", text: "Chose a live Bloomberg lookup: a stored copy would be out of date. Skipped the stored copy and FactSet for this figure." },
+            { time: "09:42", actor: "Router", text: "Found: Bloomberg — $2,604.0M (live share price × shares in issue + net debt), collected 09:42." },
+            { time: "09:42", actor: "Resolver", text: "Only one live source, so no comparison was needed." },
+            { time: "09:42", actor: "System", text: "Placed $2,604.0M in the memo as verified." },
+          ],
+          peer: [
+            { time: "09:41", actor: "System", text: "Needed the peer median EV/EBITDA." },
+            { time: "09:41", actor: "Router", text: "Chose FactSet for the peer set of 8 listed logistics companies. Skipped Bloomberg for this figure to save cost." },
+            { time: "09:41", actor: "Router", text: "Found: FactSet — 11.1x, collected 09:41.", docId: "fs-peers" },
+            { time: "09:42", actor: "System", text: "Placed 11.1x in the memo as verified." },
+          ],
+        },
+        qa: {
+          en: ["Why two EV/EBITDA multiples?", "What is the peer median?"],
+          ar: ["لماذا يوجد مضاعفان للقيمة إلى الأرباح؟", "ما هو متوسط مضاعف الشركات المماثلة؟"],
+          answer: (q, lang, c) => {
+            const s = q.toLowerCase();
+            if (s.includes("peer") || s.includes("median") || s.includes("متوسط")) {
+              return lang === "ar"
+                ? { text: "متوسط مضاعف الشركات المماثلة هو 11.1x وفق FactSet (8 شركات مدرجة).", docs: [] }
+                : { text: "The peer median is 11.1x (FactSet, 8 listed logistics peers).", docs: [] };
+            }
+            if (s.includes("revenue") || s.includes("إيراد")) {
+              return lang === "ar"
+                ? { text: "بلغت الإيرادات 1,260.0 مليون دولار وفق التقرير السنوي المدقق (الصفحة 51) وFactSet.", docs: ["ar-p51"] }
+                : { text: "FY2025 revenue was $1,260.0M in both the audited annual report (p.51) and FactSet.", docs: ["ar-p51"] };
+            }
+            if (s.includes("multiple") || s.includes("ebitda") || s.includes("why") || s.includes("لماذا") || s.includes("مضاعف")) {
+              if (lang === "ar") {
+                const base = "يعتمد المضاعف 12.4x على الأرباح المعلنة للأشهر الاثني عشر الماضية، بينما يعتمد 12.8x على توقعات المحللين للأشهر الاثني عشر القادمة. نعرض كليهما مع التسمية ولا نحسب متوسطاً بينهما.";
+                return { text: c.overridden ? "اخترتَ " + c.effLabel + ". كان قرار النظام عرض الاثنين معاً. " + base : base, docs: ["ar-p54", "bb-snap"] };
+              }
+              const base = "12.4x divides the enterprise value by last twelve months reported EBITDA ($210.0M). 12.8x divides it by analysts' forward estimate ($203.4M). They differ because of the earnings basis, not an error. We show both, labelled, and never average.";
+              return { text: c.overridden ? "You chose " + c.effLabel + ". The system's decision was to show both. " + base : base, docs: ["ar-p54", "bb-snap"] };
+            }
+            return lang === "ar"
+              ? { text: "حققت أطلس إيرادات 1,260.0 مليون دولار وأرباحاً معدلة 210.0 مليون دولار، وتتداول عند " + c.effValueText + " مقابل متوسط 11.1x للشركات المماثلة.", docs: ["ar-p54", "bb-snap"] }
+              : { text: "Atlas generated $1,260.0M of revenue with LTM Adjusted EBITDA of $210.0M. It trades at " + c.effValueText + " against a peer median of 11.1x.", docs: ["ar-p54", "bb-snap"] };
+          },
+        },
+      },
+    };
+
+    // ======================================================================
+    // HELPERS
+    // ======================================================================
+    const TODAY = new Date().toLocaleDateString("en-GB", { day: "numeric", month: "short", year: "numeric" });
+
+    function formatStamp(t) {
+      if (!t || t === "—" || t.indexOf("·") !== -1) return t;
+      return TODAY + " · " + t;
+    }
+
+    function nowHHMM() {
+      const d = new Date();
+      return TODAY + " · " + String(d.getHours()).padStart(2, "0") + ":" + String(d.getMinutes()).padStart(2, "0");
+    }
+
+    const NEW_DECISION = { status: "proposed", optionId: null, reason: "", remember: false, at: "", by: "", reviewed: false };
+
+    function initialDecision(c) {
+      if (c.autonomy.mode === "auto") {
+        return { status: "decided", optionId: c.recommendedId, reason: "", remember: false, at: "09:44", by: "system", reviewed: false };
+      }
+      return NEW_DECISION;
+    }
+
+    function getEffective(c, decision) {
+      const conflict = c.figures[c.conflictId];
+      const optId = decision.status === "decided" ? decision.optionId : c.recommendedId;
+      const opt = conflict.options[optId];
+      const derived = c.derived ? c.derived.compute(optId) : null;
+      return { optId, opt, derived, conflict };
+    }
+
+    function figureText(c, figId, eff) {
+      const f = c.figures[figId];
+      if (f.kind === "verified") return f.valueText;
+      if (f.kind === "conflict") return eff.opt.valueText;
+      return eff.derived.ratioText;
+    }
+
+    function figureStatus(c, figId, decision) {
+      const f = c.figures[figId];
+      if (f.kind === "conflict") return decision.status === "decided" ? (decision.by === "system" ? "system" : "decided") : "proposed";
+      return "verified";
+    }
+
+    function buildChain(c, figId, decision, eff, history) {
+      const f = c.figures[figId];
+      const steps = [...(c.audit[figId] || [])];
+      if (f.kind === "conflict" && decision.status !== "decided") {
+        steps.push({ time: "—", actor: "System", text: "Waiting for your decision." });
+      }
+      if (f.kind === "derived") {
+        steps.push({ time: "09:47", actor: "Resolver", text: "Result: " + eff.derived.ratioText + " with headroom of " + eff.derived.headroomText + " against the " + c.figures.cap.valueText + " limit." });
+      }
+      (history[figId] || []).forEach((h) => steps.push(h));
+      return steps;
+    }
+
+    // ======================================================================
+    // SMALL COMPONENTS
+    // ======================================================================
+    function StatusPill({ status, label }) {
+      const styles = {
+        verified: ["bg-green-100", "text-green-700", "✓"],
+        proposed: ["bg-amber-100", "text-amber-700", "⚠"],
+        decided: ["bg-blue-100", "text-blue-700", "✓"],
+        system: ["bg-sky-100", "text-sky-800", "✓"],
+      };
+      const s = styles[status] || styles.verified;
+      return (
+        <span className={s[0] + " " + s[1] + " inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-sm font-medium"}>
+          <span>{s[2]}</span>
+          {label}
+        </span>
+      );
+    }
+
+    function FigureChip({ valueText, status, selected, onClick }) {
+      const styles = {
+        verified: ["bg-green-50 border-green-200", "✓", null],
+        proposed: ["bg-amber-50 border-amber-300", "⚠", "Needs review"],
+        decided: ["bg-blue-50 border-blue-200", "✓", "You chose"],
+        system: ["bg-sky-50 border-sky-300", "✓", "Decided by system"],
+      };
+      const s = styles[status] || styles.verified;
+      return (
+        <button
+          onClick={onClick}
+          className={"inline-flex items-center gap-1.5 px-3 py-1.5 mx-0.5 rounded-lg border-2 text-sm font-semibold text-slate-900 transition hover:border-slate-400 focus:outline-none focus:ring-2 focus:ring-blue-600 " + s[0] + (selected ? " ring-2 ring-blue-600" : "")}
+        >
+          <span>{s[1]}</span>
+          <span>{valueText}</span>
+          {s[2] && <span className="text-xs font-medium text-slate-600">· {s[2]}</span>}
+        </button>
+      );
+    }
+
+    function DocModal({ doc, onClose }) {
+      useEffect(() => {
+        if (!doc) return undefined;
+        const onKey = (e) => { if (e.key === "Escape") onClose(); };
+        window.addEventListener("keydown", onKey);
+        return () => window.removeEventListener("keydown", onKey);
+      }, [doc, onClose]);
+
+      if (!doc) return null;
+      return (
+        <div className="fixed inset-0 bg-slate-900/50 flex items-center justify-center z-50 p-4" onClick={onClose}>
+          <div className="bg-white rounded-lg max-w-2xl w-full max-h-[80vh] overflow-auto shadow-xl" onClick={(e) => e.stopPropagation()}>
+            <div className="sticky top-0 bg-white border-b border-slate-200 px-5 py-4 flex justify-between items-center">
+              <div>
+                <h2 className="font-semibold text-slate-900 text-base">{doc.name}</h2>
+                <p className="text-sm text-slate-500">Page {doc.page} · {doc.title}</p>
+              </div>
+              <button onClick={onClose} aria-label="Close" className="text-slate-500 hover:text-slate-800 text-xl px-2">✕</button>
+            </div>
+            <div className="p-6 space-y-2">
+              {doc.rows.map((row, i) => (
+                <div
+                  key={i}
+                  className={"p-3 rounded-lg " + (row.hl ? "bg-yellow-100 border-l-4 border-yellow-400" : "bg-slate-50")}
+                >
+                  {doc.kind === "quote" ? (
+                    <div className="font-serif text-base text-slate-800 leading-relaxed">
+                      <span className="font-semibold">{row.label}</span> {row.value}
+                    </div>
+                  ) : (
+                    <div className="flex justify-between gap-4 text-base">
+                      <span className="text-slate-700">{row.label}</span>
+                      <span className={"text-right tabular-nums " + (row.hl ? "font-bold text-slate-900" : "text-slate-800")}>{row.value}</span>
+                    </div>
+                  )}
+                </div>
+              ))}
+            </div>
+          </div>
+        </div>
+      );
+    }
+
+    // ======================================================================
+    // MEMO
+    // ======================================================================
+    function MemoCard({ c, eff, decision, selectedFigure, onSelect }) {
+      return (
+        <div className="bg-white rounded-xl border border-slate-200 p-8">
+          <h2 className="text-2xl font-bold text-slate-900">{c.memo.title}</h2>
+          <p className="text-sm text-slate-500 mb-5">Memo ID: {c.memo.id} · Showing the key figures from: {c.start.keySections.join(", ")} (the full memo has more sections)</p>
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-7 pb-7 border-b border-slate-200">
+            {c.memo.facts.map((f, i) => (
+              <div key={i}>
+                <p className="text-sm font-semibold text-slate-500">{f[0]}</p>
+                <p className="text-base text-slate-900">{f[1]}</p>
+              </div>
+            ))}
+          </div>
+          <div className="space-y-6 text-base text-slate-700 leading-loose">
+            {c.paragraphs.map((p, i) => (
+              <p key={i}>
+                {p.map((tok, j) => {
+                  if (typeof tok === "string") return <span key={j}>{tok}</span>;
+                  if (tok.chip) {
+                    return (
+                      <FigureChip
+                        key={j}
+                        valueText={figureText(c, tok.chip, eff)}
+                        status={figureStatus(c, tok.chip, decision)}
+                        selected={selectedFigure === tok.chip}
+                        onClick={() => onSelect(tok.chip)}
+                      />
+                    );
+                  }
+                  return <strong key={j} className="text-slate-900">{eff.derived[tok.derived]}</strong>;
+                })}
+              </p>
+            ))}
+          </div>
+        </div>
+      );
+    }
+
+    // ======================================================================
+    // EVIDENCE PANEL
+    // ======================================================================
+    function FeedbackBar({ figId, onSend }) {
+      const [choice, setChoice] = useState(null);
+      const [note, setNote] = useState("");
+      const [sent, setSent] = useState(false);
+      if (sent) return <p className="text-sm text-green-700">✓ Thanks. Your feedback went to the product team.</p>;
+      return (
+        <div className="pt-3 border-t border-slate-200 space-y-2">
+          <p className="text-sm font-semibold text-slate-700">Was this explanation helpful?</p>
+          <div className="flex gap-2">
+            <button onClick={() => setChoice("yes")} className={"px-3 py-1 rounded-lg border text-sm " + (choice === "yes" ? "bg-green-50 border-green-400 text-green-800" : "border-slate-300 text-slate-700")}>Yes</button>
+            <button onClick={() => setChoice("no")} className={"px-3 py-1 rounded-lg border text-sm " + (choice === "no" ? "bg-amber-50 border-amber-400 text-amber-800" : "border-slate-300 text-slate-700")}>No</button>
+          </div>
+          {choice && (
+            <div className="space-y-2">
+              <input type="text" value={note} onChange={(e) => setNote(e.target.value)} placeholder="Add a comment (optional)" className="w-full p-2 rounded border border-slate-300 text-sm" />
+              <button onClick={() => { onSend(figId, choice === "yes", note.trim()); setSent(true); }} className="px-3 py-1 rounded-lg bg-blue-600 text-white text-sm font-medium hover:bg-blue-700">Send feedback</button>
+            </div>
+          )}
+        </div>
+      );
+    }
+
+    function EvidencePanel(props) {
+      const { c, selectedFigure, decision, eff, draftOption, draftReason, draftRemember, editing,
+        onDraftOption, onDraftReason, onDraftRemember, onConfirm, onSelect, onShowDoc, onEdit, onCancelEdit, onGoToAudit, onAcknowledge, onFeedback } = props;
+
+      if (!selectedFigure) {
+        return (
+          <div className="bg-white rounded-xl border border-slate-200 p-6 text-center text-slate-500 text-base">
+            Click any highlighted figure in the memo to see where it comes from.
+          </div>
+        );
+      }
+
+      const figure = c.figures[selectedFigure];
+      if (!figure) return null;
+
+      const linkClass = "text-blue-600 hover:text-blue-800 text-sm font-medium underline-offset-2 hover:underline";
+
+      if (figure.kind === "verified") {
+        return (
+          <div className="bg-white rounded-xl border border-slate-200 p-6 space-y-4">
+            <h3 className="text-lg font-semibold text-slate-900">{figure.label}</h3>
+            <p className="text-3xl font-bold text-slate-900">{figure.valueText}</p>
+            <StatusPill status="verified" label="Verified" />
+            <p className="text-base text-slate-700">{figure.why}</p>
+            <div className="space-y-1">
+              <p className="text-sm font-semibold text-slate-900">{figure.sources.length > 1 ? "Sources that agree" : "Source"}</p>
+              {figure.sources.map((src, i) => (
+                <p key={i} className="text-sm text-slate-700">✓ {src.name} — {src.text}{src.note ? " (" + src.note + ")" : ""}{src.docId && <button onClick={() => onShowDoc(src.docId)} className={"ml-2 " + linkClass}>See in document →</button>}</p>
+              ))}
+              {figure.vendorNote && <p className="text-sm text-slate-500">{figure.vendorNote}</p>}
+            </div>
+            <div className="flex flex-col items-start gap-2">
+              {figure.docId && !figure.sources.some((s) => s.docId) && <button onClick={() => onShowDoc(figure.docId)} className={linkClass}>See in document →</button>}
+              <button onClick={() => onGoToAudit(selectedFigure)} className={linkClass}>See how we got here →</button>
+            </div>
+          </div>
+        );
+      }
+
+      if (figure.kind === "derived") {
+        return (
+          <div className="bg-white rounded-xl border border-slate-200 p-6 space-y-4">
+            <h3 className="text-lg font-semibold text-slate-900">{figure.label}</h3>
+            <p className="text-3xl font-bold text-slate-900">{eff.derived.ratioText}</p>
+            <StatusPill status="verified" label="Within limit" />
+            <p className="text-base text-slate-700">{eff.derived.line}</p>
+            <p className="text-sm text-slate-600">This follows the EBITDA decision.</p>
+            <div className="flex flex-col items-start gap-2">
+              <button onClick={() => onSelect(c.conflictId)} className={linkClass}>Review EBITDA →</button>
+              <button onClick={() => onGoToAudit(selectedFigure)} className={linkClass}>See how we got here →</button>
+            </div>
+          </div>
+        );
+      }
+
+      // conflict
+      const decided = decision.status === "decided";
+      const recId = c.recommendedId;
+      const draftIsRec = draftOption === recId;
+      const draftData = figure.options[draftOption];
+      const confirmDisabled = !draftIsRec && !draftReason.trim();
+
+      if (decided && !editing && decision.by === "system") {
+        const d = figure.options[decision.optionId];
+        return (
+          <div className="bg-white rounded-xl border border-slate-200 p-6 space-y-4">
+            <h3 className="text-lg font-semibold text-slate-900">{figure.label}</h3>
+            <p className="text-3xl font-bold text-slate-900">{d.valueText}</p>
+            <StatusPill status="system" label="Decided by the system" />
+            <p className="text-base text-slate-600">{c.gapNote}</p>
+            <div className="p-4 bg-sky-50 border border-sky-200 rounded-lg text-base space-y-1">
+              <p className="font-semibold text-sky-900">Decided by the system · {formatStamp(decision.at)}</p>
+              <p className="text-sky-900">{d.label} — {d.valueText}</p>
+              <p className="text-sky-900">Why: {c.autonomy.autoReason}</p>
+              <p className="text-sm text-sky-800 italic">{c.rule}</p>
+            </div>
+            <p className="text-base text-slate-700">{d.why}</p>
+            <FeedbackBar figId={selectedFigure} onSend={onFeedback} />
+            <div className="flex flex-wrap items-center gap-3">
+              {decision.reviewed
+                ? <span className="text-sm text-green-700">✓ You reviewed this decision</span>
+                : <button onClick={onAcknowledge} className="px-4 py-2 rounded-lg bg-blue-600 text-white text-base font-medium hover:bg-blue-700">Accept the system's decision</button>}
+              <button onClick={onEdit} className={linkClass}>Change decision</button>
+            </div>
+            <div className="flex flex-col items-start gap-2">
+              {(d.docLinks || (d.docId ? [{ label: "See in document →", docId: d.docId }] : [])).map((l) => (
+                <button key={l.docId} onClick={() => onShowDoc(l.docId)} className={linkClass}>{l.label}</button>
+              ))}
+              <button onClick={() => onGoToAudit(selectedFigure)} className={linkClass}>See how we got here →</button>
+            </div>
+          </div>
+        );
+      }
+
+      if (decided && !editing) {
+        const d = figure.options[decision.optionId];
+        return (
+          <div className="bg-white rounded-xl border border-slate-200 p-6 space-y-4">
+            <h3 className="text-lg font-semibold text-slate-900">{figure.label}</h3>
+            <p className="text-3xl font-bold text-slate-900">{d.valueText}</p>
+            <StatusPill status="decided" label="Decided by you" />
+            <div className="p-4 bg-blue-50 border border-blue-200 rounded-lg text-base space-y-1">
+              <p className="font-semibold text-blue-900">Decided by {c.user} · {formatStamp(decision.at)}</p>
+              <p className="text-blue-800">{d.label} — {d.valueText}</p>
+              <p className="text-blue-800">{decision.reason ? "Reason: " + decision.reason : "Accepted the system's decision."}</p>
+              {(d.docLinks || (d.docId ? [{ label: "See the evidence for this figure →", docId: d.docId }] : [])).map((l) => (
+                <button key={l.docId} onClick={() => onShowDoc(l.docId)} className={"block " + linkClass}>{l.label}</button>
+              ))}
+              {decision.remember && <p className="text-sm text-blue-700">Saved as the default rule for {c.clientName} memos.</p>}
+              <FeedbackBar figId={selectedFigure} onSend={onFeedback} />
+            </div>
+            <div className="flex flex-col items-start gap-2">
+              <button onClick={onEdit} className={linkClass}>Change decision</button>
+              <button onClick={() => onGoToAudit(selectedFigure)} className={linkClass}>See how we got here →</button>
+            </div>
+          </div>
+        );
+      }
+
+      return (
+        <div className="bg-white rounded-xl border border-slate-200 p-6 space-y-4">
+          <h3 className="text-lg font-semibold text-slate-900">{figure.label}</h3>
+          <p className="text-3xl font-bold text-slate-900">{eff.opt.valueText}</p>
+          {decided
+            ? <StatusPill status="decided" label={decision.by === "system" ? "Decided by the system — changing" : "Decided by you — changing"} />
+            : <StatusPill status="proposed" label="Needs your review" />}
+          <p className="text-base text-slate-600">{c.gapNote}</p>
+          {!decided && c.autonomy.signoffReason && <p className="text-base font-medium text-amber-800">{c.autonomy.signoffReason}</p>}
+
+          <div className="pt-4 border-t border-slate-200">
+            <h4 className="font-semibold text-slate-900 mb-3 text-base">{figure.verdict.heading}</h4>
+            <div className="space-y-3">
+              {Object.values(figure.options).map((opt) => (
+                <label
+                  key={opt.id}
+                  className={"block p-4 rounded-lg border-2 cursor-pointer transition " + (draftOption === opt.id ? "border-blue-600 bg-blue-50" : "border-slate-200 bg-slate-50 hover:border-slate-300")}
+                >
+                  <div className="flex items-start gap-3">
+                    <input type="radio" name={"opt-" + figure.id} checked={draftOption === opt.id} onChange={() => onDraftOption(opt.id)} className="mt-1.5 w-4 h-4" />
+                    <div className="flex-1">
+                      <div className="flex flex-wrap items-center gap-2 mb-1">
+                        <span className="font-medium text-slate-900 text-base">{opt.label}</span>
+                        {opt.recommended && <span className="text-xs font-semibold bg-green-100 text-green-700 px-2 py-0.5 rounded">System's choice</span>}
+                      </div>
+                      <p className="text-2xl font-bold text-slate-900">{opt.valueText}</p>
+                      <p className="text-sm text-slate-600 mt-1">{c.impact(opt)}</p>
+                    </div>
+                  </div>
+                </label>
+              ))}
+            </div>
+
+            <div className="mt-4 p-4 bg-slate-50 rounded-lg border border-slate-200 space-y-2">
+              <p className="font-semibold text-slate-900 text-base">Why this figure</p>
+              <p className="text-base text-slate-700">{draftData.why}</p>
+              <p className="text-sm text-slate-600">{draftData.detail}</p>
+              {(draftData.docLinks || (draftData.docId ? [{ label: "See in document →", docId: draftData.docId }] : [])).map((l) => (
+                <button key={l.docId} onClick={() => onShowDoc(l.docId)} className={"block " + linkClass}>{l.label}</button>
+              ))}
+              {!draftData.docLinks && !draftData.docId && draftData.vendorNote && <p className="text-sm text-slate-500">{draftData.vendorNote}</p>}
+              <p className="text-sm text-slate-500 italic pt-2 border-t border-slate-200">{c.rule}</p>
+            </div>
+
+            <div className="mt-4">
+              <label className="block text-sm font-semibold text-slate-900 mb-2">
+                {draftIsRec ? "Add a note (optional)" : "Why are you choosing a different figure? (required)"}
+              </label>
+              <textarea
+                value={draftReason}
+                onChange={(e) => onDraftReason(e.target.value)}
+                placeholder={draftIsRec ? "" : "e.g. Committee policy is to use vendor-standard figures"}
+                rows={draftIsRec ? 2 : 3}
+                className="w-full p-3 rounded-lg border border-slate-300 text-base focus:outline-none focus:ring-2 focus:ring-blue-600"
+              />
+            </div>
+
+            <label className="flex items-center gap-2 mt-4">
+              <input type="checkbox" checked={draftRemember} onChange={(e) => onDraftRemember(e.target.checked)} className="w-4 h-4" />
+              <span className="text-base text-slate-700">Remember this choice for future {c.clientName} memos</span>
+            </label>
+
+            <div className="flex gap-2 mt-4">
+              <button
+                onClick={onConfirm}
+                disabled={confirmDisabled}
+                className={"flex-1 py-2.5 rounded-lg font-medium text-base transition " + (confirmDisabled ? "bg-slate-200 text-slate-500 cursor-not-allowed" : "bg-blue-600 text-white hover:bg-blue-700")}
+              >
+                {draftIsRec ? figure.verdict.confirmLabel : figure.verdict.challengeLabel}
+              </button>
+              {editing && (
+                <button onClick={onCancelEdit} className="px-4 py-2.5 rounded-lg font-medium text-base text-slate-700 hover:bg-slate-100">Cancel</button>
+              )}
+            </div>
+            <button onClick={() => onGoToAudit(selectedFigure)} className={"mt-3 " + linkClass}>See how we got here →</button>
+          </div>
+        </div>
+      );
+    }
+
+    // ======================================================================
+    // ASK BOX
+    // ======================================================================
+    function AskBox({ c, eff, decision, messages, onAdd, onShowDoc }) {
+      const [lang, setLang] = useState("en");
+      const [input, setInput] = useState("");
+
+      const ask = (question) => {
+        const text = question.trim();
+        if (!text) return;
+        const ctx = {
+          overridden: decision.status === "decided" && decision.optionId !== c.recommendedId,
+          effLabel: eff.opt.label,
+          effValueText: eff.opt.valueText,
+          effDocId: eff.opt.docId,
+          effNum: eff.opt.value,
+          ratioText: eff.derived ? eff.derived.ratioText : "",
+          headroomText: eff.derived ? eff.derived.headroomText : "",
+        };
+        const res = c.qa.answer(text, lang, ctx);
+        onAdd({ q: text, a: res.text, lang, docs: res.docs });
+        setInput("");
+      };
+
+      const suggestions = lang === "en" ? c.qa.en : c.qa.ar;
+
+      return (
+        <div className="bg-white rounded-xl border border-slate-200 p-6">
+          <h3 className="text-lg font-semibold text-slate-900 mb-4">Ask about this memo</h3>
+          <div className="flex gap-2 mb-3">
+            <input
+              type="text"
+              value={input}
+              onChange={(e) => setInput(e.target.value)}
+              onKeyDown={(e) => { if (e.key === "Enter") ask(input); }}
+              dir={lang === "ar" ? "rtl" : "ltr"}
+              placeholder={lang === "ar" ? "اسأل عن هذه المذكرة..." : "Ask a question..."}
+              className="flex-1 px-4 py-2 border border-slate-300 rounded-lg text-base focus:outline-none focus:ring-2 focus:ring-blue-600"
+            />
+            <div className="flex border border-slate-300 rounded-lg overflow-hidden">
+              <button onClick={() => setLang("en")} className={"px-3 py-2 text-sm font-medium " + (lang === "en" ? "bg-blue-600 text-white" : "bg-slate-50 text-slate-600")}>English</button>
+              <button onClick={() => setLang("ar")} className={"px-3 py-2 text-sm font-medium border-l border-slate-300 " + (lang === "ar" ? "bg-blue-600 text-white" : "bg-slate-50 text-slate-600")}>العربية</button>
+            </div>
+          </div>
+          <div className="flex flex-col gap-2" dir={lang === "ar" ? "rtl" : "ltr"}>
+            {suggestions.map((q, i) => (
+              <button key={i} onClick={() => ask(q)} className={"px-3 py-2 rounded-lg border border-slate-200 hover:border-slate-300 text-base text-slate-700 " + (lang === "ar" ? "text-right" : "text-left")}>{q}</button>
+            ))}
+          </div>
+
+          {messages.length > 0 && (
+            <div className="mt-5 pt-5 border-t border-slate-200 space-y-4">
+              {messages.map((m, i) => (
+                <div key={i} dir={m.lang === "ar" ? "rtl" : "ltr"} className="space-y-2">
+                  <div className="flex justify-end">
+                    <div className="bg-slate-100 text-slate-900 px-4 py-2 rounded-lg max-w-md text-base">{m.q}</div>
+                  </div>
+                  <div className="flex justify-start">
+                    <div className="bg-blue-50 border border-blue-100 px-4 py-3 rounded-lg max-w-lg text-base text-slate-800 space-y-2">
+                      <p>{m.a}</p>
+                      {m.docs.length > 0 && (
+                        <div className="flex flex-wrap gap-3" dir="ltr">
+                          {m.docs.map((d) => (
+                            <button key={d} onClick={() => onShowDoc(d)} className="text-sm text-blue-700 underline">
+                              {c.documents[d].name} p.{c.documents[d].page}
+                            </button>
+                          ))}
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+      );
+    }
+
+    // ======================================================================
+    // TAB: WHERE WE LOOKED
+    // ======================================================================
+    function PlatformView({ c, feedback }) {
+      const p = c.platform;
+      const th = "py-2 pr-3 font-semibold text-slate-500 text-left";
+      const td = "py-2 pr-3 align-top text-slate-700";
+      const card = "bg-white rounded-xl border border-slate-200 p-6";
+      return (
+        <div className="max-w-6xl space-y-6">
+          <div>
+            <div className="flex flex-wrap items-center gap-3 mb-1">
+              <h2 className="text-2xl font-bold text-slate-900">Platform insights</h2>
+              <span className="text-sm font-medium px-2.5 py-1 rounded-full bg-slate-900 text-white">Product team view · not shown to clients</span>
+            </div>
+            <p className="text-base text-slate-600 mb-1">{p.workflow}. Across many memos: how the router and the resolution engine perform, what users say, and what to improve next.</p>
+            <p className="text-sm text-slate-500 italic">{p.period}. Illustrative demo data. Cost and response times are shown here for the product team, not in the client's view.</p>
+            <p className="text-sm text-slate-600 mt-1">Scope of this demo: quality is judged from client feedback only, meaning what users accept, override, rate and report.</p>
+          </div>
+
+          <div className="grid grid-cols-1 sm:grid-cols-4 gap-4">
+            {p.tiles.map((t, i) => (
+              <div key={i} className="bg-white rounded-xl border border-slate-200 p-4">
+                <p className="text-sm text-slate-600">{t.label}</p>
+                <p className="text-3xl font-bold text-slate-900">{t.value}</p>
+                <p className="text-sm text-slate-500">{t.note}</p>
+              </div>
+            ))}
+          </div>
+
+          <div className={card}>
+            <h3 className="font-semibold text-slate-900 text-lg mb-1">Router: is each source worth calling?</h3>
+            <p className="text-sm text-slate-500 mb-3">Per source, across memos: how often it was used, how often it supplied a figure or changed the answer, and what it costs and how fast it responds.</p>
+            <div className="overflow-x-auto">
+              <table className="w-full text-sm">
+                <thead>
+                  <tr className="border-b border-slate-200">
+                    <th className={th}>Source</th>
+                    <th className={th}>Used</th>
+                    <th className={th}>Supplied a figure</th>
+                    <th className={th}>Changed the answer</th>
+                    <th className={th}>Cost per call</th>
+                    <th className={th}>Response time</th>
+                    <th className={th}>What this suggests</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {p.router.map((r, i) => (
+                    <tr key={i} className="border-b border-slate-100">
+                      <td className={td + " font-medium text-slate-900"}>{r.name}</td>
+                      <td className={td}>{r.used}</td>
+                      <td className={td}>{r.supplied}</td>
+                      <td className={td}>{r.changed}</td>
+                      <td className={td}>{r.cost}</td>
+                      <td className={td}>{r.time}</td>
+                      <td className={td}>{r.note}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          </div>
+
+          <div className={card}>
+            <h3 className="font-semibold text-slate-900 text-lg mb-1">Resolution engine: do users accept its decisions?</h3>
+            <p className="text-sm text-slate-500 mb-3">For each type of resolution: how often users accepted it as is, how often they overrode it, and why.</p>
+            <div className="overflow-x-auto">
+              <table className="w-full text-sm">
+                <thead>
+                  <tr className="border-b border-slate-200">
+                    <th className={th}>Resolution type</th>
+                    <th className={th}>Issued</th>
+                    <th className={th}>Accepted as is</th>
+                    <th className={th}>Overridden</th>
+                    <th className={th}>Why users overrode it</th>
+                    <th className={th}>What this suggests</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {p.resolution.map((r, i) => (
+                    <tr key={i} className="border-b border-slate-100">
+                      <td className={td + " font-medium text-slate-900"}>{r.verdict}</td>
+                      <td className={td}>{r.issued}</td>
+                      <td className={td}>{r.accepted}</td>
+                      <td className={td}>{r.overridden}</td>
+                      <td className={td}>{r.reasons}</td>
+                      <td className={td}>{r.note}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+            <div className="mt-4 pt-4 border-t border-slate-200">
+              <p className="font-semibold text-slate-900 text-base mb-2">Autonomy dial: should the system decide on its own?</p>
+              {p.autonomy.map((a, i) => (
+                <p key={i} className="text-base text-slate-700">{a.type}: {a.rate}. Current setting: <span className="font-medium text-slate-900">{a.setting}</span>. {a.suggestion}</p>
+              ))}
+            </div>
+          </div>
+
+          <div className={card}>
+            <h3 className="font-semibold text-slate-900 text-lg mb-3">What users say</h3>
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-4">
+              <div className="border border-slate-200 rounded-lg p-4">
+                <p className="text-sm text-slate-600">Average rating of the explanations</p>
+                <p className="text-2xl font-bold text-slate-900">{p.feedback.rating}</p>
+                <p className="text-sm text-slate-500">{p.feedback.ratingNote}</p>
+              </div>
+              <div className="border border-slate-200 rounded-lg p-4">
+                <p className="text-sm text-slate-600">Helpful</p>
+                <p className="text-2xl font-bold text-slate-900">{p.feedback.helpful}</p>
+                <p className="text-sm text-slate-500">{p.feedback.helpfulNote}</p>
+              </div>
+              <div className="border border-slate-200 rounded-lg p-4">
+                <p className="text-sm text-slate-600">Problems reported</p>
+                <p className="text-2xl font-bold text-slate-900">{p.feedback.problems}</p>
+                <p className="text-sm text-slate-500">{p.feedback.problemsNote}</p>
+              </div>
+            </div>
+            <ul className="space-y-2">
+              {p.feedback.comments.map((m, i) => (
+                <li key={i} className="text-base text-slate-700">"{m.text}" <span className="text-sm text-slate-500">({m.score})</span></li>
+              ))}
+            </ul>
+            {feedback.length > 0 && (
+              <div className="mt-4 pt-4 border-t border-slate-200">
+                <p className="font-semibold text-slate-900 text-base mb-2">From this demo session</p>
+                <ul className="space-y-1">
+                  {feedback.map((f, i) => (
+                    <li key={i} className="text-base text-slate-700">{c.figures[f.figId].label}: {f.helpful ? "helpful" : "not helpful"}{f.note ? ", “" + f.note + "”" : ""}</li>
+                  ))}
+                </ul>
+              </div>
+            )}
+          </div>
+
+          <div className={card}>
+            <h3 className="font-semibold text-slate-900 text-lg mb-1">What we would improve next</h3>
+            <p className="text-sm text-slate-500 mb-3">Proposed changes to the router and the resolution engine, each tied to the evidence above.</p>
+            <div className="overflow-x-auto">
+              <table className="w-full text-sm">
+                <thead>
+                  <tr className="border-b border-slate-200">
+                    <th className={th}>Engine</th>
+                    <th className={th}>Proposed change</th>
+                    <th className={th}>Evidence</th>
+                    <th className={th}>Status</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {p.improvements.map((m, i) => (
+                    <tr key={i} className="border-b border-slate-100">
+                      <td className={td + " font-medium text-slate-900"}>{m.area}</td>
+                      <td className={td}>{m.change}</td>
+                      <td className={td}>{m.evidence}</td>
+                      <td className={td}>{m.status}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+      );
+    }
+
+    function RulesCard({ c, decision, eff, customLogic, onSaveLogic, onResetLogic, onGoToChallenge, onResetRule }) {
+      const conflict = c.figures[c.conflictId];
+      const defaults = c.routerRules.map((r) => ({ rule: r.rule, why: r.why, enabled: true, custom: false }));
+      const [editing, setEditing] = useState(false);
+      const [draft, setDraft] = useState(defaults);
+      const active = customLogic || defaults;
+
+      const startEdit = () => { setDraft((customLogic || defaults).map((r) => ({ ...r }))); setEditing(true); };
+      const update = (i, patch) => setDraft((d) => d.map((r, k) => (k === i ? { ...r, ...patch } : r)));
+      const move = (i, dir) => setDraft((d) => {
+        const j = i + dir;
+        if (j < 0 || j >= d.length) return d;
+        const n = d.slice();
+        const t = n[i];
+        n[i] = n[j];
+        n[j] = t;
+        return n;
+      });
+      const remove = (i) => setDraft((d) => d.filter((r, k) => k !== i));
+      const add = () => setDraft((d) => [...d, { rule: "", why: "", enabled: true, custom: true }]);
+      const canSave = draft.every((r) => r.rule.trim()) && draft.some((r) => r.enabled);
+      const save = () => {
+        onSaveLogic(draft.map((r) => ({ ...r, rule: r.rule.trim(), why: r.why.trim() })));
+        setEditing(false);
+      };
+
+      return (
+        <div className="bg-white rounded-xl border border-slate-200 p-6">
+          <div className="flex flex-wrap items-center justify-between gap-2 mb-1">
+            <h3 className="font-semibold text-slate-900 text-lg">How we choose, and why</h3>
+            {customLogic
+              ? <span className="text-sm font-medium px-2.5 py-1 rounded-full bg-blue-100 text-blue-700">Custom logic for {c.clientName} memos</span>
+              : <span className="text-sm font-medium px-2.5 py-1 rounded-full bg-slate-100 text-slate-600">Platform default logic</span>}
+          </div>
+          <p className="text-sm text-slate-500 mb-3">
+            {customLogic
+              ? "You have replaced the platform's default logic with your own for " + c.clientName + " memos. You can edit it or reset it at any time."
+              : "This is the platform's default logic, from the trust order and cost policy agreed with the client. You can change it to your own logic for " + c.clientName + " memos."}
+          </p>
+
+          {!editing && (
+            <div>
+              <ol className="space-y-2 text-base text-slate-700">
+                {active.map((r, i) => (
+                  <li key={i} className={"flex gap-3 " + (r.enabled ? "" : "opacity-50")}>
+                    <span className="font-semibold text-slate-400">{i + 1}</span>
+                    <span>
+                      <span className="font-medium text-slate-900">{r.rule}</span>
+                      {r.custom && <span className="ml-2 text-xs font-semibold bg-blue-100 text-blue-700 px-2 py-0.5 rounded">Added by you</span>}
+                      {!r.enabled && <span className="ml-2 text-xs font-semibold bg-slate-100 text-slate-600 px-2 py-0.5 rounded">Turned off</span>}
+                      <br />
+                      <span className="text-slate-600">Why: {r.why || "No reason given."}</span>
+                    </span>
+                  </li>
+                ))}
+              </ol>
+
+              {decision.status === "decided" && decision.remember && (
+                <div className="mt-4 p-4 bg-blue-50 border border-blue-200 rounded-lg text-base text-blue-900">
+                  <p className="font-semibold">Rule from your decision: use "{eff.opt.label}" for {conflict.label}.</p>
+                  <p className="text-sm text-blue-700 mt-1">You chose this and asked us to remember it for future {c.clientName} memos.</p>
+                  <div className="flex gap-4 mt-2">
+                    <button onClick={onGoToChallenge} className="text-blue-700 text-sm font-medium hover:underline">Change it</button>
+                    <button onClick={onResetRule} className="text-slate-600 text-sm font-medium hover:underline">Remove it</button>
+                  </div>
+                </div>
+              )}
+
+              <div className="mt-4 flex flex-wrap items-center gap-4">
+                <button onClick={startEdit} className="px-4 py-2 rounded-lg bg-blue-600 text-white text-base font-medium hover:bg-blue-700">{customLogic ? "Edit your logic" : "Change the logic"}</button>
+                {customLogic && <button onClick={onResetLogic} className="text-slate-600 hover:text-slate-900 text-sm font-medium hover:underline">Reset to platform default</button>}
+              </div>
+              {customLogic && <p className="text-sm text-slate-500 mt-3">Illustrative: in this prototype your logic is saved and recorded in the audit trail, but it does not change the demo results.</p>}
+            </div>
+          )}
+
+          {editing && (
+            <div className="space-y-3">
+              <p className="text-sm text-slate-600">Edit the rules, turn them on or off, change their order (the first rule has the highest priority), or add your own. Each rule should have a reason, so the committee can see why.</p>
+              {draft.map((r, i) => (
+                <div key={i} className="border border-slate-200 rounded-lg p-3 space-y-2">
+                  <div className="flex items-center justify-between gap-2">
+                    <span className="text-sm font-semibold text-slate-500">Rule {i + 1}{r.custom ? " (yours)" : ""}</span>
+                    <div className="flex items-center gap-3">
+                      <label className="flex items-center gap-1 text-sm text-slate-700">
+                        <input type="checkbox" checked={r.enabled} onChange={(e) => update(i, { enabled: e.target.checked })} /> On
+                      </label>
+                      <button onClick={() => move(i, -1)} disabled={i === 0} className="text-sm text-slate-600 disabled:opacity-30">↑</button>
+                      <button onClick={() => move(i, 1)} disabled={i === draft.length - 1} className="text-sm text-slate-600 disabled:opacity-30">↓</button>
+                      {r.custom && <button onClick={() => remove(i)} className="text-sm text-red-600 hover:underline">Remove</button>}
+                    </div>
+                  </div>
+                  <input type="text" value={r.rule} onChange={(e) => update(i, { rule: e.target.value })} placeholder="The rule" className="w-full p-2 rounded border border-slate-300 text-base" />
+                  <input type="text" value={r.why} onChange={(e) => update(i, { why: e.target.value })} placeholder="Why (shown to the committee)" className="w-full p-2 rounded border border-slate-300 text-base" />
+                </div>
+              ))}
+              <button onClick={add} className="text-blue-600 hover:underline text-base font-medium">+ Add your own rule</button>
+              <div className="flex gap-2 pt-1">
+                <button onClick={save} disabled={!canSave} className={"px-4 py-2 rounded-lg text-base font-medium " + (canSave ? "bg-blue-600 text-white hover:bg-blue-700" : "bg-slate-200 text-slate-500 cursor-not-allowed")}>Save my logic</button>
+                <button onClick={() => setEditing(false)} className="px-4 py-2 rounded-lg text-base font-medium text-slate-700 hover:bg-slate-100">Cancel</button>
+              </div>
+            </div>
+          )}
+        </div>
+      );
+    }
+
+    function WhereWeLookedTab({ c, decision, eff, onGoToChallenge, onShowDoc, onResetRule, customLogic, onSaveLogic, onResetLogic }) {
+      const conflict = c.figures[c.conflictId];
+      const pillStyle = { green: "bg-green-100 text-green-700", blue: "bg-blue-100 text-blue-700", grey: "bg-slate-100 text-slate-600" };
+      const chipStyle = { Used: "bg-green-50 text-green-700 border-green-200", Reused: "bg-green-50 text-green-700 border-green-200", Skipped: "bg-slate-50 text-slate-500 border-slate-200" };
+      return (
+        <div className="max-w-3xl space-y-6">
+          <div>
+            <h2 className="text-2xl font-bold text-slate-900 mb-1">Where we looked</h2>
+            <p className="text-base text-slate-600 mb-1">By source: what each source contributed to this memo, what it cost, and the evidence. It answers: are we looking in the right places? For how a single figure was reached, see the Audit trail.</p>
+            <p className="text-sm text-slate-500 italic">Illustrative demo data.</p>
+          </div>
+
+          <p className="text-base text-slate-700">For this memo the system used {c.routerSummary[0].value} sources and skipped {c.routerSummary[1].value}.</p>
+
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            {c.routerSummary.slice(0, 2).map((t, i) => (
+              <div key={i} className="bg-white rounded-xl border border-slate-200 p-4">
+                <p className="text-sm text-slate-600">{t.label}</p>
+                <p className="text-3xl font-bold text-slate-900">{t.value}</p>
+                <p className="text-sm text-slate-500">{t.note}</p>
+              </div>
+            ))}
+          </div>
+
+          <RulesCard c={c} decision={decision} eff={eff} customLogic={customLogic} onSaveLogic={onSaveLogic} onResetLogic={onResetLogic} onGoToChallenge={onGoToChallenge} onResetRule={onResetRule} />
+
+          <div className="bg-white rounded-xl border border-slate-200 p-6">
+            <h3 className="font-semibold text-slate-900 text-lg mb-3">Source by source</h3>
+            <div className="space-y-3">
+              {c.routerRows.map((r, i) => (
+                <div key={i} className="border border-slate-200 rounded-lg p-4 flex justify-between items-start gap-4">
+                  <div className="space-y-1">
+                    <div className="flex flex-wrap items-center gap-2">
+                      <p className="font-semibold text-slate-900 text-base">{r.name}</p>
+                      <span className={"text-xs font-medium px-2 py-0.5 rounded border " + chipStyle[r.status]}>{r.status}</span>
+                    </div>
+                    <p className="text-base text-slate-700">{r.status === "Skipped" ? "Why skipped: " : "Result: "}{r.result}</p>
+                    {c.routerVerdicts && c.routerVerdicts[i] && (
+                      <div className="text-base text-slate-700">
+                        <p><span className="text-sm font-semibold text-slate-500">Changed the answer? </span>{c.routerVerdicts[i].changed}</p>
+                        <p><span className="text-sm font-semibold text-slate-500">Verdict: </span>{c.routerVerdicts[i].verdict}</p>
+                      </div>
+                    )}
+                    {r.found && r.found.length > 0 && (
+                      <div className="pt-1">
+                        <p className="text-sm font-semibold text-slate-500">What we found</p>
+                        <ul className="space-y-1">
+                          {r.found.map((f, k) => (
+                            <li key={k} className="text-base text-slate-700">• {f.text}{f.docId && <button onClick={() => onShowDoc(f.docId)} className="ml-2 text-sm text-blue-600 hover:underline">See in document →</button>}</li>
+                          ))}
+                        </ul>
+                      </div>
+                    )}
+                  </div>
+                  <span className={"text-sm font-medium px-2.5 py-1 rounded-full whitespace-nowrap " + pillStyle[r.color]}>{r.pill}</span>
+                </div>
+              ))}
+            </div>
+          </div>
+
+          <div className="bg-white rounded-xl border border-slate-200 p-6">
+            <h3 className="font-semibold text-slate-900 text-lg mb-2">In short</h3>
+            <p className="text-base text-slate-700">{c.routerHelp}</p>
+          </div>
+        </div>
+      );
+    }
+
+    // ======================================================================
+    // TAB: AUDIT TRAIL
+    // ======================================================================
+    function AuditTrailTab({ c, decision, eff, history, flagged, expandedId, onExpand, onShowDoc, onChallenge, onFlag }) {
+      const [exportMsg, setExportMsg] = useState("");
+      const [reportOpen, setReportOpen] = useState(null);
+      const [reportNote, setReportNote] = useState("");
+
+      const chains = {};
+      let counter = 0;
+      const numbered = {};
+      c.figureOrder.forEach((id) => {
+        chains[id] = buildChain(c, id, decision, eff, history);
+        numbered[id] = chains[id].map((s) => { counter += 1; return { ...s, n: counter }; });
+      });
+      const total = counter;
+      const pad = (n) => "#" + String(n).padStart(3, "0");
+
+      const handleExport = () => {
+        const lines = ["Audit pack — " + c.memo.title + " (" + c.memo.id + ")", "Illustrative demo data", ""];
+        c.figureOrder.forEach((id) => {
+          lines.push(c.figures[id].label.toUpperCase());
+          numbered[id].forEach((s) => lines.push("  " + pad(s.n) + " " + formatStamp(s.time) + " [" + s.actor + "] " + s.text));
+          lines.push("");
+        });
+        const blob = new Blob([lines.join("\n")], { type: "text/plain" });
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement("a");
+        a.href = url;
+        a.download = "audit-pack-" + c.id + ".txt";
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+        URL.revokeObjectURL(url);
+        setExportMsg("✓ Audit pack downloaded (demo)");
+      };
+
+      const summaryFor = (id) => {
+        const f = c.figures[id];
+        if (f.kind === "conflict") {
+          return decision.status === "decided"
+            ? (decision.by === "system" ? "Decided by the system: " + f.options[decision.optionId].label + (decision.reviewed ? " · you reviewed it" : " · review available") : "You chose: " + f.options[decision.optionId].label)
+            : "Proposed: " + f.options[c.recommendedId].label + " — awaiting your review";
+        }
+        if (f.kind === "derived") return f.summary + (decision.status === "decided" ? "" : " (awaiting the EBITDA decision)");
+        return f.summary;
+      };
+
+      const pillFor = (id) => {
+        const f = c.figures[id];
+        if (f.kind === "conflict") return decision.status === "decided" ? <StatusPill status={decision.by === "system" ? "system" : "decided"} label={decision.by === "system" ? "Decided by system" : "Decided by you"} /> : <StatusPill status="proposed" label="Needs sign-off" />;
+        return <StatusPill status="verified" label="Verified" />;
+      };
+
+      const actorStyle = { You: "bg-blue-100 text-blue-800", Router: "bg-indigo-100 text-indigo-800", Resolver: "bg-amber-100 text-amber-800", System: "bg-slate-100 text-slate-700" };
+
+      return (
+        <div className="max-w-3xl space-y-5">
+          <div>
+            <h2 className="text-2xl font-bold text-slate-900 mb-1">Audit trail</h2>
+            <p className="text-base text-slate-600 mb-1">By figure: the full numbered record of how each figure was reached and who decided. It answers: can I replay and verify this number? For what each source contributed and cost, see Where we looked.</p>
+            <p className="text-sm text-slate-500 italic">Illustrative demo data.</p>
+          </div>
+
+          <div className="bg-white rounded-xl border border-slate-200 p-5">
+            <p className="text-sm font-semibold text-blue-600">What started this</p>
+            <p className="text-base font-semibold text-slate-900">{c.user} clicked "{c.start.buttonLabel}" — {c.start.productLabel}</p>
+            <ul className="mt-2 space-y-1 text-base text-slate-700">
+              {c.start.fields.map((f, i) => (
+                <li key={i}><span className="text-slate-500">{f[0]}:</span> {f[1]}</li>
+              ))}
+            </ul>
+            <p className="text-sm text-slate-500 mt-2">Every figure below was requested by the system on the strength of this one action.</p>
+          </div>
+
+          <div className="flex flex-wrap items-center justify-between gap-3 bg-white rounded-xl border border-slate-200 p-4">
+            <p className="text-base font-semibold text-slate-900">{total} steps recorded</p>
+            <div className="flex items-center gap-3">
+              {exportMsg && <span className="text-sm text-green-700">{exportMsg}</span>}
+              <button onClick={handleExport} className="px-4 py-2 bg-blue-600 text-white rounded-lg text-base font-medium hover:bg-blue-700">Export audit pack</button>
+            </div>
+          </div>
+
+          {c.figureOrder.map((id) => {
+            const f = c.figures[id];
+            const open = expandedId === id;
+            return (
+              <div key={id} className="bg-white rounded-xl border border-slate-200 overflow-hidden">
+                <button onClick={() => onExpand(open ? null : id)} className="w-full px-6 py-4 flex items-center justify-between gap-4 hover:bg-slate-50 text-left">
+                  <div>
+                    <h3 className="font-semibold text-slate-900 text-lg">{f.label}</h3>
+                    <p className="text-base text-slate-600">{summaryFor(id)}</p>
+                  </div>
+                  <div className="flex items-center gap-4">
+                    <span className="font-bold text-slate-900 text-lg">{figureText(c, id, eff)}</span>
+                    {pillFor(id)}
+                    <span className="text-slate-400 text-xl">{open ? "−" : "+"}</span>
+                  </div>
+                </button>
+                {open && (
+                  <div className="px-6 py-5 border-t border-slate-200 bg-slate-50 space-y-4">
+                    <ol className="space-y-3">
+                      {numbered[id].map((s) => (
+                        <li key={s.n} className="flex gap-3">
+                          <span className="text-sm font-mono text-slate-400 pt-0.5">{pad(s.n)}</span>
+                          <div className="space-y-1">
+                            <div className="flex items-center gap-2">
+                              <span className={"text-xs font-semibold px-2 py-0.5 rounded-full " + (actorStyle[s.actor] || actorStyle.System)}>{s.actor}</span>
+                              <span className="text-sm text-slate-500">{formatStamp(s.time)}</span>
+                            </div>
+                            <p className="text-base text-slate-800">{s.text}</p>
+                            {(s.docIds || (s.docId ? [s.docId] : [])).map((id) => (
+                              <button key={id} onClick={() => onShowDoc(id)} className="mr-4 text-sm text-blue-600 hover:underline">{c.documents[id].name} p.{c.documents[id].page} →</button>
+                            ))}
+                          </div>
+                        </li>
+                      ))}
+                    </ol>
+                    <div className="pt-3 border-t border-slate-200 flex flex-wrap items-center gap-4">
+                      {f.kind === "conflict" ? (
+                        <button onClick={onChallenge} className="text-blue-600 hover:underline text-base font-medium">Challenge this figure</button>
+                      ) : (
+                        <>
+                          <button onClick={() => { setReportOpen(reportOpen === id ? null : id); setReportNote(""); }} className="text-blue-600 hover:underline text-base font-medium">Report a problem with this figure</button>
+                          {flagged.includes(id) && <span className="text-sm text-green-700">✓ Reported: a follow-up was logged and shows on the memo</span>}
+                          {reportOpen === id && (
+                            <div className="w-full space-y-2">
+                              <label className="block text-sm font-semibold text-slate-900">What looks wrong? (required)</label>
+                              <textarea value={reportNote} onChange={(e) => setReportNote(e.target.value)} rows={3} className="w-full p-3 rounded-lg border border-slate-300 text-base focus:outline-none focus:ring-2 focus:ring-blue-600" />
+                              <div className="flex gap-2">
+                                <button
+                                  disabled={!reportNote.trim()}
+                                  onClick={() => { onFlag(id, reportNote.trim()); setReportOpen(null); setReportNote(""); }}
+                                  className={"px-4 py-2 rounded-lg text-base font-medium " + (reportNote.trim() ? "bg-blue-600 text-white hover:bg-blue-700" : "bg-slate-200 text-slate-500 cursor-not-allowed")}
+                                >
+                                  Send report
+                                </button>
+                                <button onClick={() => setReportOpen(null)} className="px-4 py-2 rounded-lg text-base font-medium text-slate-700 hover:bg-slate-100">Cancel</button>
+                              </div>
+                            </div>
+                          )}
+                        </>
+                      )}
+                    </div>
+                  </div>
+                )}
+              </div>
+            );
+          })}
+        </div>
+      );
+    }
+
+    // ======================================================================
+    // APP
+    // ======================================================================
+    function StartScreen({ c, phase, runStep, onStart }) {
+      const s = c.start;
+      const running = phase === "running";
+      return (
+        <div className="max-w-2xl mx-auto">
+          <div className="bg-white rounded-xl border border-slate-200 p-8 space-y-6">
+            <div>
+              <p className="text-sm font-semibold text-blue-600">{s.productLabel}</p>
+              <h2 className="text-2xl font-bold text-slate-900">{s.title}</h2>
+            </div>
+            <div className="space-y-3">
+              {s.fields.map((f, i) => (
+                <div key={i}>
+                  <p className="text-sm font-semibold text-slate-500">{f[0]}</p>
+                  <p className="text-base text-slate-900">{f[1]}</p>
+                </div>
+              ))}
+            </div>
+            <div>
+              <p className="text-sm font-semibold text-slate-500 mb-2">Sections in this memo</p>
+              <div className="flex flex-wrap gap-2">
+                {s.sections.map((t, i) => (
+                  <span key={i} className={"text-sm px-2.5 py-1 rounded-full border " + (s.keySections.includes(t) ? "bg-blue-50 border-blue-200 text-blue-800 font-medium" : "bg-slate-50 border-slate-200 text-slate-600")}>{t}</span>
+                ))}
+              </div>
+              <p className="text-sm text-slate-500 mt-2">{s.figuresNote}</p>
+            </div>
+            {!running ? (
+              <button onClick={onStart} className="w-full py-3 rounded-lg bg-blue-600 text-white font-medium text-base hover:bg-blue-700">{s.buttonLabel}</button>
+            ) : (
+              <ol className="space-y-2 pt-4 border-t border-slate-200">
+                {s.runSteps.map((t, i) => (
+                  <li key={i} className={"flex items-center gap-2 text-base " + (i < runStep ? "text-slate-800" : i === runStep ? "text-blue-700" : "text-slate-400")}>
+                    <span className="w-5 text-center">{i < runStep ? "✓" : i === runStep ? "…" : "·"}</span>
+                    <span>{t}</span>
+                  </li>
+                ))}
+              </ol>
+            )}
+            <p className="text-sm text-slate-500">This is the only step the user takes. The engine does the rest, then you review.</p>
+          </div>
+        </div>
+      );
+    }
+
+    function App() {
+      const [caseId, setCaseId] = useState("credit");
+      const [tab, setTab] = useState("memo");
+      const [selectedFigure, setSelectedFigure] = useState(null);
+      const [decision, setDecision] = useState(initialDecision(CASES.credit));
+      const [draftOption, setDraftOption] = useState("contract");
+      const [draftReason, setDraftReason] = useState("");
+      const [draftRemember, setDraftRemember] = useState(false);
+      const [editing, setEditing] = useState(false);
+      const [history, setHistory] = useState({});
+      const [flagged, setFlagged] = useState([]);
+      const [submitted, setSubmitted] = useState(false);
+      const [messages, setMessages] = useState([]);
+      const [customLogic, setCustomLogic] = useState(null);
+      const [viewMode, setViewMode] = useState("committee");
+      const [feedback, setFeedback] = useState([]);
+      const [showDocId, setShowDocId] = useState(null);
+      const [expandedAudit, setExpandedAudit] = useState("ebitda");
+      const [phase, setPhase] = useState("start");
+      const [runStep, setRunStep] = useState(0);
+
+      const c = CASES[caseId];
+      const eff = getEffective(c, decision);
+      const pending = decision.status !== "decided";
+      const ackNeeded = decision.status === "decided" && decision.by === "system" && !decision.reviewed;
+
+      useEffect(() => {
+        if (phase !== "running") return undefined;
+        const total = CASES[caseId].start.runSteps.length;
+        if (runStep >= total) {
+          const done = setTimeout(() => setPhase("ready"), 500);
+          return () => clearTimeout(done);
+        }
+        const next = setTimeout(() => setRunStep((n) => n + 1), 800);
+        return () => clearTimeout(next);
+      }, [phase, runStep, caseId]);
+
+      const resetAll = (id) => {
+        setCaseId(id);
+        setTab("memo");
+        setSelectedFigure(null);
+        setDecision(initialDecision(CASES[id]));
+        setDraftOption(CASES[id].recommendedId);
+        setDraftReason("");
+        setDraftRemember(false);
+        setEditing(false);
+        setHistory({});
+        setFlagged([]);
+        setSubmitted(false);
+        setMessages([]);
+        setCustomLogic(null);
+        setShowDocId(null);
+        setExpandedAudit(CASES[id].conflictId);
+        setFeedback([]);
+        setPhase("start");
+        setRunStep(0);
+      };
+
+      const addHistory = (figId, items) => {
+        setHistory((prev) => ({ ...prev, [figId]: [...(prev[figId] || []), ...items] }));
+      };
+
+      const handleConfirm = () => {
+        const time = nowHHMM();
+        const conflict = c.figures[c.conflictId];
+        const o = conflict.options[draftOption];
+        const reason = draftReason.trim();
+        const isRec = draftOption === c.recommendedId;
+        const items = [{
+          time, actor: "You",
+          text: (isRec ? "Confirmed the system's decision: " : "Changed the system's decision to ") + o.label + " (" + o.valueText + ")." + (reason ? " Reason: " + reason : ""),
+          docIds: o.docLinks ? o.docLinks.map((l) => l.docId) : (o.docId ? [o.docId] : []),
+        }];
+        if (draftRemember) items.push({ time, actor: "You", text: "Saved as the default rule for " + c.clientName + " memos." });
+        addHistory(c.conflictId, items);
+        setDecision({ status: "decided", optionId: draftOption, reason, remember: draftRemember, at: time, by: "you", reviewed: true });
+        setEditing(false);
+        setDraftReason("");
+      };
+
+      const handleEdit = () => {
+        setEditing(true);
+        setDraftOption(decision.optionId);
+        setDraftReason("");
+        setDraftRemember(false);
+      };
+
+      const handleFeedback = (figId, helpful, note) => {
+        addHistory(figId, [{ time: nowHHMM(), actor: "You", text: "Feedback on the explanation: " + (helpful ? "helpful" : "not helpful") + (note ? ". Comment: " + note : "") + " (sent to the product team)." }]);
+        setFeedback((prev) => [...prev, { figId, helpful, note }]);
+      };
+
+      const handleSaveLogic = (rules) => {
+        addHistory(c.conflictId, [{ time: nowHHMM(), actor: "You", text: "Changed the default logic for " + c.clientName + " memos: " + rules.filter((r) => r.enabled).length + " active rules, " + rules.filter((r) => r.custom).length + " added by you." }]);
+        setCustomLogic(rules);
+      };
+
+      const handleResetLogic = () => {
+        addHistory(c.conflictId, [{ time: nowHHMM(), actor: "You", text: "Reset the logic to the platform default for " + c.clientName + " memos." }]);
+        setCustomLogic(null);
+      };
+
+      const handleResetRule = () => {
+        addHistory(c.conflictId, [{ time: nowHHMM(), actor: "You", text: "Removed the saved rule; the default logic applies again." }]);
+        setDecision((d) => ({ ...d, remember: false }));
+      };
+
+      const handleAcknowledge = () => {
+        addHistory(c.conflictId, [{ time: nowHHMM(), actor: "You", text: "Reviewed the system's decision and accepted it." }]);
+        setDecision((d) => ({ ...d, reviewed: true }));
+      };
+
+      const goToAudit = (figId) => { setExpandedAudit(figId); setTab("audit"); };
+
+      const goToChallenge = () => {
+        setTab("memo");
+        setSelectedFigure(c.conflictId);
+        if (decision.status === "decided") handleEdit();
+      };
+
+      const handleFlag = (figId, note) => {
+        addHistory(figId, [{ time: nowHHMM(), actor: "You", text: "Reported a problem: " + note + " (follow-up logged)." }]);
+        setFlagged((prev) => (prev.includes(figId) ? prev : [...prev, figId]));
+      };
+
+      const handleSubmit = () => {
+        addHistory(c.conflictId, [{ time: nowHHMM(), actor: "You", text: "Submitted the memo to committee." }]);
+        setSubmitted(true);
+      };
+
+      const tabs = [["memo", "Memo"], ["sources", "Where we looked"], ["audit", "Audit trail"]];
+
+      return (
+        <div className="min-h-screen flex flex-col">
+          <header className="sticky top-0 z-40 bg-white border-b border-slate-200">
+            <div className="max-w-7xl mx-auto px-4 py-3 flex flex-wrap items-center justify-between gap-3">
+              <div className="flex items-center gap-3">
+                <div className="w-10 h-10 bg-blue-600 text-white flex items-center justify-center rounded-lg font-bold text-sm">(In)</div>
+                <div>
+                  <h1 className="text-xl font-bold text-slate-900">{c.id === "credit" ? "Credit Companion" : "(In)Alpha"} · Evidence Check</h1>
+                  <p className="text-sm text-slate-500">{c.memo.title} · {c.memo.id}</p>
+                </div>
+              </div>
+              <div className="flex items-center gap-4">
+                <div className="flex border border-slate-300 rounded-lg overflow-hidden">
+                  <button onClick={() => resetAll("credit")} className={"px-4 py-2 text-sm font-medium " + (caseId === "credit" ? "bg-blue-600 text-white" : "bg-white text-slate-700 hover:bg-slate-50")}>Credit case</button>
+                  <button onClick={() => resetAll("invest")} className={"px-4 py-2 text-sm font-medium border-l border-slate-300 " + (caseId === "invest" ? "bg-blue-600 text-white" : "bg-white text-slate-700 hover:bg-slate-50")}>Investment case</button>
+                </div>
+                <div className="flex border border-slate-300 rounded-lg overflow-hidden">
+                  <button onClick={() => setViewMode("committee")} className={"px-3 py-2 text-sm font-medium " + (viewMode === "committee" ? "bg-slate-900 text-white" : "bg-white text-slate-700 hover:bg-slate-50")}>Committee view</button>
+                  <button onClick={() => setViewMode("platform")} className={"px-3 py-2 text-sm font-medium border-l border-slate-300 " + (viewMode === "platform" ? "bg-slate-900 text-white" : "bg-white text-slate-700 hover:bg-slate-50")}>Platform team view</button>
+                </div>
+                <button onClick={() => resetAll(caseId)} className="text-sm text-slate-500 hover:text-slate-800 underline">Reset demo</button>
+              </div>
+            </div>
+            <div className={"max-w-7xl mx-auto px-4 flex gap-2" + (phase === "ready" && viewMode === "committee" ? "" : " hidden")}>
+              {tabs.map((t) => (
+                <button
+                  key={t[0]}
+                  onClick={() => setTab(t[0])}
+                  className={"relative px-4 py-2.5 text-base font-medium border-b-2 " + (tab === t[0] ? "border-blue-600 text-blue-600" : "border-transparent text-slate-600 hover:text-slate-900")}
+                >
+                  {t[1]}
+                  {t[0] === "audit" && pending && <span className="absolute top-2 right-0 w-2 h-2 bg-amber-500 rounded-full" />}
+                </button>
+              ))}
+            </div>
+          </header>
+
+          <main className="flex-1">
+            <div className="max-w-7xl mx-auto px-4 py-8">
+              {viewMode === "platform" && <PlatformView c={c} feedback={feedback} />}
+
+              {viewMode === "committee" && phase !== "ready" && <StartScreen c={c} phase={phase} runStep={runStep} onStart={() => { setRunStep(0); setPhase("running"); }} />}
+
+              {viewMode === "committee" && phase === "ready" && tab === "memo" && (
+                <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+                  <div className="lg:col-span-2 space-y-6">
+                    <div className={"rounded-xl p-4 flex items-center justify-between text-base " + (pending ? "bg-amber-50 border border-amber-200" : ackNeeded ? "bg-sky-50 border border-sky-200" : "bg-green-50 border border-green-200")}>
+                      <p className={"font-medium " + (pending ? "text-amber-900" : ackNeeded ? "text-sky-900" : "text-green-900")}>
+                        {pending ? (c.figureOrder.length - 1) + " of " + c.figureOrder.length + " key figures verified · 1 needs your sign-off" : ackNeeded ? (c.figureOrder.length - 1) + " of " + c.figureOrder.length + " key figures verified · 1 decided by the system, please review" : "All " + c.figureOrder.length + " key figures verified or decided"}
+                      </p>
+                      {(pending || ackNeeded) && (
+                        <button onClick={() => setSelectedFigure(c.conflictId)} className="text-amber-800 hover:text-amber-950 font-medium text-sm underline">Review now</button>
+                      )}
+                    </div>
+
+                    {flagged.length > 0 && (
+                      <div className="rounded-xl p-4 bg-amber-50 border border-amber-200 text-base text-amber-900 flex items-center justify-between gap-3">
+                        <span>{flagged.length} figure{flagged.length > 1 ? "s" : ""} flagged for follow-up: {flagged.map((fid) => c.figures[fid].label).join(", ")}</span>
+                        <button onClick={() => goToAudit(flagged[0])} className="text-sm font-medium underline">View report</button>
+                      </div>
+                    )}
+
+                    <MemoCard c={c} eff={eff} decision={decision} selectedFigure={selectedFigure} onSelect={setSelectedFigure} />
+
+                    <div className="bg-white rounded-xl border border-slate-200 p-6">
+                      <button
+                        onClick={handleSubmit}
+                        disabled={pending || ackNeeded || submitted}
+                        className={"w-full py-3 rounded-lg font-medium text-base transition " + (pending || ackNeeded || submitted ? "bg-slate-200 text-slate-500 cursor-not-allowed" : "bg-blue-600 text-white hover:bg-blue-700")}
+                      >
+                        Submit to committee
+                      </button>
+                      {pending && <p className="text-sm text-slate-500 mt-2">1 figure still needs your sign-off.</p>}
+                      {ackNeeded && <p className="text-sm text-slate-500 mt-2">Review the figure decided by the system before submitting.</p>}
+                      {submitted && <p className="text-sm text-green-700 mt-2">✓ Memo submitted to committee</p>}
+                    </div>
+
+                    <AskBox c={c} eff={eff} decision={decision} messages={messages} onAdd={(m) => setMessages((prev) => [...prev, m])} onShowDoc={setShowDocId} />
+                  </div>
+
+                  <div className="lg:col-span-1 lg:sticky lg:top-36 lg:self-start">
+                    <EvidencePanel
+                      c={c}
+                      selectedFigure={selectedFigure}
+                      decision={decision}
+                      eff={eff}
+                      draftOption={draftOption}
+                      draftReason={draftReason}
+                      draftRemember={draftRemember}
+                      editing={editing}
+                      onDraftOption={setDraftOption}
+                      onDraftReason={setDraftReason}
+                      onDraftRemember={setDraftRemember}
+                      onConfirm={handleConfirm}
+                      onSelect={setSelectedFigure}
+                      onShowDoc={setShowDocId}
+                      onEdit={handleEdit}
+                      onCancelEdit={() => setEditing(false)}
+                      onGoToAudit={goToAudit}
+                      onAcknowledge={handleAcknowledge}
+                      onFeedback={handleFeedback}
+                    />
+                  </div>
+                </div>
+              )}
+
+              {viewMode === "committee" && phase === "ready" && tab === "sources" && <WhereWeLookedTab c={c} decision={decision} eff={eff} onGoToChallenge={goToChallenge} onShowDoc={setShowDocId} onResetRule={handleResetRule} customLogic={customLogic} onSaveLogic={handleSaveLogic} onResetLogic={handleResetLogic} />}
+
+              {viewMode === "committee" && phase === "ready" && tab === "audit" && (
+                <AuditTrailTab
+                  c={c}
+                  decision={decision}
+                  eff={eff}
+                  history={history}
+                  flagged={flagged}
+                  expandedId={expandedAudit}
+                  onExpand={setExpandedAudit}
+                  onShowDoc={setShowDocId}
+                  onChallenge={goToChallenge}
+                  onFlag={handleFlag}
+                />
+              )}
+            </div>
+          </main>
+
+          <DocModal doc={showDocId ? c.documents[showDocId] : null} onClose={() => setShowDocId(null)} />
+
+          <footer className="bg-white border-t border-slate-200 py-4 text-center text-sm text-slate-500">
+            Powered by G42 Financial Data Intelligence Platform
+          </footer>
+        </div>
+      );
+    }
+
+    ReactDOM.createRoot(document.getElementById("root")).render(<App />);
+  </script>
+</body>
+</html>
